@@ -6,7 +6,7 @@ use std::{
 use libflate::zlib;
 use serde_pickle::{DeOptions, Value};
 
-use crate::{index::Index, version::Version};
+use crate::{content::Content, index::Index, version::Version};
 
 pub struct Archive<'a, R: Seek + BufRead> {
     pub reader: &'a mut R,
@@ -16,6 +16,7 @@ pub struct Archive<'a, R: Seek + BufRead> {
 
     pub version: Version,
     pub indexes: HashMap<String, Index>,
+    pub content: HashMap<String, Content>,
 }
 
 impl<'a, R> Archive<'a, R>
@@ -29,6 +30,7 @@ where
             version: Version::V3_2,
             indexes: HashMap::new(),
             key: Some(0xDEADBEEF),
+            content: HashMap::new(),
         }
     }
 
@@ -49,6 +51,7 @@ where
             version,
             indexes,
             key,
+            content: HashMap::new(),
         })
     }
 
@@ -130,3 +133,5 @@ where
         io::copy(&mut scope, writer)
     }
 }
+
+impl<'a, R> Archive<'a, R> where R: Seek + BufRead {}

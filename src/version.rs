@@ -16,4 +16,15 @@ impl Version {
             _ => None,
         }
     }
+
+    pub fn value(&self) -> &str {
+        match self {
+            Version::V3_2 => "RPA-3.2",
+            Version::V3_0 => "RPA-3.0",
+            Version::V2_0 => "RPA-2.0",
+            Version::V1_0 => unimplemented!(
+                "Not useful. This method should be called only after checking version."
+            ),
+        }
+    }
 }

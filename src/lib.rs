@@ -1,4 +1,5 @@
 mod archive;
+mod content;
 mod index;
 mod version;
 
