@@ -2,9 +2,10 @@ use std::{
     fs::{self, File, OpenOptions},
     io::{self, BufReader, Cursor, Seek},
     path::PathBuf,
+    rc::Rc,
 };
 
-use rpalib::Archive;
+use rpalib::{Archive, Content, ContentKind};
 
 macro_rules! debug {
     ($label:ident) => {
@@ -20,6 +21,12 @@ fn main() -> io::Result<()> {
     let mut reader = BufReader::new(file);
 
     let mut archive = Archive::from_reader(&mut reader)?;
+
+    {
+        let path = Rc::from(PathBuf::from("audio/log.txt"));
+        let content = Content::new(Rc::clone(&path), ContentKind::File);
+        archive.content.insert(path, content);
+    }
 
     let mut writer = File::create("output.rpa")?;
     // let mut writer = Cursor::new(Vec::new());

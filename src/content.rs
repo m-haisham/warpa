@@ -1,7 +1,7 @@
 use std::{
     fs::File,
     io::{self, Cursor, Write},
-    path::Path,
+    path::{Path, PathBuf},
     rc::Rc,
 };
 
@@ -15,6 +15,12 @@ pub struct Content {
 pub enum ContentKind {
     File,
     Raw { data: Vec<u8> },
+}
+
+impl Content {
+    pub fn new(path: Rc<Path>, kind: ContentKind) -> Self {
+        Content { path, kind }
+    }
 }
 
 impl Content {
