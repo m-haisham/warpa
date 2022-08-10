@@ -126,7 +126,7 @@ where
             "File not found in archive.",
         ))?;
 
-        let mut scope = index.take(&mut self.reader)?;
+        let mut scope = index.scope(&mut self.reader)?;
         io::copy(&mut scope, writer)
     }
 }

@@ -45,7 +45,7 @@ fn main() -> io::Result<()> {
             index.length,
         );
 
-        let mut scope = index.take(&mut archive.reader)?;
+        let mut scope = index.scope(&mut archive.reader)?;
         let written = io::copy(&mut scope, &mut file)?;
 
         debug!(written);

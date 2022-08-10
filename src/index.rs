@@ -43,7 +43,7 @@ impl Index {
 }
 
 impl Index {
-    pub fn take<'i, 'r, R: Seek + Read>(
+    pub fn scope<'i, 'r, R: Seek + Read>(
         &'i self,
         reader: &'r mut R,
     ) -> io::Result<Take<&'r mut R>> {
