@@ -13,10 +13,10 @@ pub struct Index {
 pub struct InvalidPickleFormat;
 
 impl Index {
-    pub fn new(data: (u64, u64), key: Option<u64>) -> Self {
+    pub fn new(start: u64, length: u64, key: Option<u64>) -> Self {
         let (start, length) = match key {
-            Some(key) => (data.0 ^ key, data.0 ^ key),
-            None => data,
+            Some(key) => (start ^ key, length ^ key),
+            None => (start, length),
         };
 
         Self {
@@ -38,7 +38,15 @@ impl Index {
             _ => Err(InvalidPickleFormat),
         }?;
 
-        Ok(Self::new(data, key))
+        Ok(Self::new(data.0, data.1, key))
+    }
+
+    pub fn into_value(&self) -> Value {
+        Value::List(vec![Value::List(vec![
+            Value::I64(self.start as i64),
+            Value::I64(self.length as i64),
+            // FIXME: Add prefix support.
+        ])])
     }
 }
 

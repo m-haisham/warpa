@@ -1,3 +1,5 @@
+use std::io;
+
 #[derive(Debug)]
 pub enum Version {
     V3_2,
@@ -17,14 +19,14 @@ impl Version {
         }
     }
 
-    pub fn value(&self) -> &str {
+    pub fn header_length(&self) -> io::Result<usize> {
         match self {
-            Version::V3_2 => "RPA-3.2",
-            Version::V3_0 => "RPA-3.0",
-            Version::V2_0 => "RPA-2.0",
-            Version::V1_0 => unimplemented!(
-                "Not useful. This method should be called only after checking version."
-            ),
+            Version::V3_2 | Version::V3_0 => Ok(34),
+            Version::V2_0 => Ok(25),
+            Version::V1_0 => Err(io::Error::new(
+                io::ErrorKind::Other,
+                "version not supported",
+            )),
         }
     }
 }

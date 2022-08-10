@@ -1,6 +1,6 @@
 use std::{
     fs::{self, File, OpenOptions},
-    io::{self, BufReader},
+    io::{self, BufReader, Cursor, Seek},
     path::PathBuf,
 };
 
@@ -21,35 +21,40 @@ fn main() -> io::Result<()> {
 
     let mut archive = Archive::from_reader(&mut reader)?;
 
-    for (path, index) in archive.indexes.iter() {
-        let path = PathBuf::from(path);
-        match path.parent() {
-            Some(parent) => {
-                if !parent.exists() {
-                    fs::create_dir_all(parent)?;
-                }
-            }
-            None => (),
-        }
+    let mut writer = File::create("output.rpa")?;
+    // let mut writer = Cursor::new(Vec::new());
 
-        let mut file = OpenOptions::new()
-            .write(true)
-            .truncate(true)
-            .create(true)
-            .open(&path)?;
+    archive.flush(&mut writer)?;
 
-        println!(
-            "path = {}, start = {}, length = {}",
-            path.display(),
-            index.start,
-            index.length,
-        );
+    // for (path, index) in archive.indexes.iter() {
+    //     let path = PathBuf::from(path);
+    //     match path.parent() {
+    //         Some(parent) => {
+    //             if !parent.exists() {
+    //                 fs::create_dir_all(parent)?;
+    //             }
+    //         }
+    //         None => (),
+    //     }
 
-        let mut scope = index.scope(&mut archive.reader)?;
-        let written = io::copy(&mut scope, &mut file)?;
+    //     let mut file = OpenOptions::new()
+    //         .write(true)
+    //         .truncate(true)
+    //         .create(true)
+    //         .open(&path)?;
 
-        debug!(written);
-    }
+    //     println!(
+    //         "path = {}, start = {}, length = {}",
+    //         path.display(),
+    //         index.start,
+    //         index.length,
+    //     );
+
+    //     let mut scope = index.scope(&mut archive.reader)?;
+    //     let written = io::copy(&mut scope, &mut file)?;
+
+    //     debug!(written);
+    // }
 
     Ok(())
 }

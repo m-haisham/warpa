@@ -1,17 +1,18 @@
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     io::{self, BufRead, Cursor, Read, Seek, SeekFrom, Write},
     path::Path,
     rc::Rc,
 };
 
-use libflate::zlib;
-use serde_pickle::{DeOptions, Value};
+use libflate::zlib::{self, Encoder};
+use serde_pickle::{DeOptions, HashableValue, SerOptions, Value};
 
 use crate::{content::Content, index::Index, version::Version};
 
-pub struct Archive<'a, R: Seek + BufRead> {
-    pub reader: &'a mut R,
+#[derive(Debug)]
+pub struct Archive<R: Seek + BufRead> {
+    pub reader: R,
 
     pub key: Option<u64>,
     pub offset: u64,
@@ -21,11 +22,11 @@ pub struct Archive<'a, R: Seek + BufRead> {
     pub content: HashMap<Rc<Path>, Content>,
 }
 
-impl<'a, R> Archive<'a, R>
+impl<R> Archive<R>
 where
     R: Seek + BufRead,
 {
-    pub fn new(reader: &'a mut R) -> Self {
+    pub fn new(reader: R) -> Self {
         Self {
             reader,
             offset: 0,
@@ -36,7 +37,7 @@ where
         }
     }
 
-    pub fn from_reader(reader: &'a mut R) -> io::Result<Self> {
+    pub fn from_reader(mut reader: R) -> io::Result<Self> {
         let mut version = String::new();
         reader.by_ref().take(7).read_to_string(&mut version)?;
 
@@ -45,7 +46,7 @@ where
             "Cannot identify archive version",
         ))?;
 
-        let (offset, key, indexes) = Self::metadata(reader, &version)?;
+        let (offset, key, indexes) = Self::metadata(&mut reader, &version)?;
 
         Ok(Self {
             reader,
@@ -121,7 +122,7 @@ where
     }
 }
 
-impl<'a, R> Archive<'a, R>
+impl<R> Archive<R>
 where
     R: Seek + BufRead,
 {
@@ -139,5 +140,93 @@ where
             io::ErrorKind::NotFound,
             "File not found in archive or content.",
         ))
+    }
+}
+
+impl<R> Archive<R>
+where
+    R: Seek + BufRead,
+{
+    pub fn flush<W: Seek + Write>(mut self, writer: &mut W) -> io::Result<()> {
+        let mut offset: u64 = 0;
+
+        // Write a placeholder header to be filled later.
+        // Not using seek since writer might not have any data.
+        let header = vec![0u8; self.version.header_length()?];
+        offset += writer.write(&header)? as u64;
+
+        // Build indexes while writing to the archive.
+        let mut indexes = HashMap::new();
+
+        // Copy data from existing archive (indexes).
+        for (path, index) in self.indexes.into_iter() {
+            let mut scope = index.scope(&mut self.reader)?;
+            let length = io::copy(&mut scope, writer)?;
+
+            indexes.insert(path, Index::new(offset, length, self.key));
+            offset += length;
+        }
+
+        // Copy data from content.
+        for (path, content) in self.content.into_iter() {
+            let length = content.copy_to(writer)?;
+            let path = path.as_os_str().to_string_lossy().to_string();
+
+            indexes.insert(path, Index::new(offset, length, self.key));
+            offset += length;
+        }
+
+        {
+            // Convert indexes into serializable values.
+            let values = Value::Dict(BTreeMap::from_iter(
+                indexes
+                    .into_iter()
+                    .map(|(k, v)| (HashableValue::String(k), v.into_value())),
+            ));
+
+            // Serialize indexes with picke protocol 2.
+            let mut buffer = Vec::new();
+            let options = SerOptions::new().proto_v2();
+            match serde_pickle::value_to_writer(&mut buffer, &values, options) {
+                Ok(_) => Ok(()),
+                Err(serde_pickle::Error::Io(e)) => Err(e),
+                Err(_) => Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    "Failed to serialize archive indexes.",
+                )),
+            }?;
+
+            // Compress serialized data with zlib.
+            let mut input = Cursor::new(buffer);
+            let mut encoder = Encoder::new(Vec::new())?;
+            io::copy(&mut input, &mut encoder)?;
+
+            // Write compressed data to writer.
+            let compressed = encoder.finish().into_result()?;
+            let mut cursor = Cursor::new(compressed);
+            io::copy(&mut cursor, writer)?;
+        }
+
+        // Back to start, time to write the header.
+        writer.rewind()?;
+
+        let key = self.key.unwrap_or(0);
+        let header = match self.version {
+            Version::V3_2 => format!("RPA-3.2 {:016x} {:08x}\n", offset, key),
+            Version::V3_0 => format!("RPA-3.0 {:016x} {:08x}\n", offset, key),
+            Version::V2_0 => format!("RPA-2.0 {:016x}\n", offset),
+            Version::V1_0 => {
+                return Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    "version not supported",
+                ))
+            }
+        };
+        writer.write(&header.into_bytes())?;
+
+        // And done.
+        writer.flush()?;
+
+        Ok(())
     }
 }

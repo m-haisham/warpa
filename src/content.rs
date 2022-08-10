@@ -5,11 +5,13 @@ use std::{
     rc::Rc,
 };
 
+#[derive(Debug)]
 pub struct Content {
     pub path: Rc<Path>,
     pub kind: ContentKind,
 }
 
+#[derive(Debug)]
 pub enum ContentKind {
     File,
     Raw { data: Vec<u8> },
