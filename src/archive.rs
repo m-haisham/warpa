@@ -1,6 +1,8 @@
 use std::{
     collections::HashMap,
     io::{self, BufRead, Cursor, Read, Seek, SeekFrom, Write},
+    path::Path,
+    rc::Rc,
 };
 
 use libflate::zlib;
@@ -16,7 +18,7 @@ pub struct Archive<'a, R: Seek + BufRead> {
 
     pub version: Version,
     pub indexes: HashMap<String, Index>,
-    pub content: HashMap<String, Content>,
+    pub content: HashMap<Rc<Path>, Content>,
 }
 
 impl<'a, R> Archive<'a, R>
@@ -124,14 +126,18 @@ where
     R: Seek + BufRead,
 {
     pub fn copy_file<W: Write>(&mut self, path: &str, writer: &mut W) -> io::Result<u64> {
-        let index = self.indexes.get(path).ok_or(io::Error::new(
-            io::ErrorKind::NotFound,
-            "File not found in archive.",
-        ))?;
+        if let Some(content) = self.content.get(Path::new(path)) {
+            return content.copy_to(writer);
+        }
 
-        let mut scope = index.scope(&mut self.reader)?;
-        io::copy(&mut scope, writer)
+        if let Some(index) = self.indexes.get(path) {
+            let mut scope = index.scope(&mut self.reader)?;
+            return io::copy(&mut scope, writer);
+        };
+
+        Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            "File not found in archive or content.",
+        ))
     }
 }
-
-impl<'a, R> Archive<'a, R> where R: Seek + BufRead {}
