@@ -1,0 +1,12 @@
+[package]
+name = "rpalib"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+libflate = "1.2.0"
+log = "0.4.17"
+serde = "1.0.143"
+serde-pickle = "1.1.1"
