@@ -147,7 +147,8 @@ impl<R> Archive<R>
 where
     R: Seek + BufRead,
 {
-    pub fn flush<W: Seek + Write>(mut self, writer: &mut W) -> io::Result<()> {
+    /// TODO: Return result that can be converted into an archive with minimal effort.
+    pub fn flush<W: Seek + Write>(mut self, writer: &mut W) -> io::Result<FlushResult> {
         let mut offset: u64 = 0;
 
         // Write a placeholder header to be filled later.
@@ -180,8 +181,8 @@ where
             // Convert indexes into serializable values.
             let values = Value::Dict(BTreeMap::from_iter(
                 indexes
-                    .into_iter()
-                    .map(|(k, v)| (HashableValue::String(k), v.into_value())),
+                    .iter()
+                    .map(|(k, v)| (HashableValue::String(k.clone()), v.into_value())),
             ));
 
             // Serialize indexes with picke protocol 2.
@@ -212,6 +213,7 @@ where
 
         let key = self.key.unwrap_or(0);
         let header = match self.version {
+            // FIXME: wrong version 3.2 header.
             Version::V3_2 => format!("RPA-3.2 {:016x} {:08x}\n", offset, key),
             Version::V3_0 => format!("RPA-3.0 {:016x} {:08x}\n", offset, key),
             Version::V2_0 => format!("RPA-2.0 {:016x}\n", offset),
@@ -227,6 +229,34 @@ where
         // And done.
         writer.flush()?;
 
-        Ok(())
+        Ok(FlushResult {
+            key: self.key,
+            offset,
+            version: self.version,
+            indexes,
+        })
+    }
+}
+
+pub struct FlushResult {
+    key: Option<u64>,
+    offset: u64,
+    version: Version,
+    indexes: HashMap<String, Index>,
+}
+
+impl FlushResult {
+    pub fn into_archive<R>(self, reader: R) -> Archive<R>
+    where
+        R: Seek + BufRead,
+    {
+        Archive {
+            reader,
+            key: self.key,
+            offset: self.offset,
+            version: self.version,
+            indexes: self.indexes,
+            content: HashMap::new(),
+        }
     }
 }

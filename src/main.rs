@@ -1,6 +1,6 @@
 use std::{
-    fs::{self, File, OpenOptions},
-    io::{self, BufReader, Cursor, Seek},
+    fs::File,
+    io::{self, BufReader},
     path::PathBuf,
     rc::Rc,
 };
@@ -28,10 +28,11 @@ fn main() -> io::Result<()> {
         archive.content.insert(path, content);
     }
 
-    let mut writer = File::create("output.rpa")?;
+    let mut output = File::create("output.rpa")?;
     // let mut writer = Cursor::new(Vec::new());
 
-    archive.flush(&mut writer)?;
+    let result = archive.flush(&mut output)?;
+    result.into_archive(BufReader::new(output));
 
     // for (path, index) in archive.indexes.iter() {
     //     let path = PathBuf::from(path);
