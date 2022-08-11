@@ -5,7 +5,7 @@ use std::{
     rc::Rc,
 };
 
-use libflate::zlib::{self, Encoder};
+use flate2::{read::ZlibDecoder, write::ZlibEncoder, Compression};
 use serde_pickle::{DeOptions, HashableValue, SerOptions, Value};
 
 use crate::{content::Content, index::Index, version::Version};
@@ -100,7 +100,7 @@ where
         reader.read_to_end(&mut contents)?;
 
         // Decode indexes data.
-        let mut decoder = zlib::Decoder::new(Cursor::new(contents))?;
+        let mut decoder = ZlibDecoder::new(Cursor::new(contents));
         let mut contents = Vec::new();
         io::copy(&mut decoder, &mut contents)?;
 
@@ -197,11 +197,11 @@ where
 
             // Compress serialized data with zlib.
             let mut input = Cursor::new(buffer);
-            let mut encoder = Encoder::new(Vec::new())?;
+            let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
             io::copy(&mut input, &mut encoder)?;
 
             // Write compressed data to writer.
-            let compressed = encoder.finish().into_result()?;
+            let compressed = encoder.finish()?;
             let mut cursor = Cursor::new(compressed);
             io::copy(&mut cursor, writer)?;
         }
