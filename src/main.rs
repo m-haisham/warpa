@@ -1,6 +1,6 @@
 use std::{
     fs::{self, File},
-    io::{self, BufRead, BufReader},
+    io::{self, BufReader},
     path::PathBuf,
 };
 
@@ -28,6 +28,12 @@ enum Command {
         #[clap(short, long)]
         out: Option<PathBuf>,
     },
+
+    // List contents of archive
+    L {
+        /// Path to archive.
+        path: PathBuf,
+    },
 }
 
 fn main() -> io::Result<()> {
@@ -52,6 +58,16 @@ fn main() -> io::Result<()> {
                     let mut file = File::create(output)?;
                     index.copy_to(&mut archive.reader, &mut file)?;
                 }
+            }
+
+            Ok(())
+        }
+        Command::L { path } => {
+            let reader = BufReader::new(File::open(path)?);
+            let archive = Archive::from_reader(reader)?;
+
+            for path in archive.indexes.keys() {
+                println!("{path}");
             }
 
             Ok(())
