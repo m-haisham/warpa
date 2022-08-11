@@ -127,10 +127,6 @@ where
     R: Seek + BufRead,
 {
     pub fn copy_file<W: Write>(&mut self, path: &str, writer: &mut W) -> io::Result<u64> {
-        if let Some(content) = self.content.get(Path::new(path)) {
-            return content.copy_to(writer);
-        }
-
         if let Some(index) = self.indexes.get(path) {
             let mut scope = index.scope(&mut self.reader)?;
 
@@ -141,6 +137,10 @@ where
 
             return io::copy(&mut scope, writer);
         };
+
+        if let Some(content) = self.content.get(Path::new(path)) {
+            return content.copy_to(writer);
+        }
 
         Err(io::Error::new(
             io::ErrorKind::NotFound,
