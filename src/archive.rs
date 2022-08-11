@@ -8,7 +8,7 @@ use std::{
 use flate2::{read::ZlibDecoder, write::ZlibEncoder, Compression};
 use serde_pickle::{DeOptions, HashableValue, SerOptions, Value};
 
-use crate::{content::Content, index::Index, version::Version};
+use crate::{content::Content, index::Index, version::Version, RpaError, RpaResult};
 
 #[derive(Debug)]
 pub struct Archive<R: Seek + BufRead> {
@@ -30,21 +30,18 @@ where
         Self {
             reader,
             offset: 0,
-            version: Version::V3_2,
+            version: Version::V3_0,
             indexes: HashMap::new(),
             key: Some(0xDEADBEEF),
             content: HashMap::new(),
         }
     }
 
-    pub fn from_reader(mut reader: R) -> io::Result<Self> {
+    pub fn from_reader(mut reader: R) -> RpaResult<Self> {
         let mut version = String::new();
         reader.by_ref().take(7).read_to_string(&mut version)?;
 
-        let version = Version::identify("", &version).ok_or(io::Error::new(
-            io::ErrorKind::Other,
-            "Cannot identify archive version",
-        ))?;
+        let version = Version::identify("", &version).ok_or(RpaError::IdentifyVersion)?;
 
         let (offset, key, indexes) = Self::metadata(&mut reader, &version)?;
 
@@ -61,7 +58,7 @@ where
     pub fn metadata<'b>(
         reader: &'b mut R,
         version: &Version,
-    ) -> io::Result<(u64, Option<u64>, HashMap<String, Index>)> {
+    ) -> RpaResult<(u64, Option<u64>, HashMap<String, Index>)> {
         let mut first_line = String::new();
         reader.read_line(&mut first_line)?;
 
@@ -69,25 +66,20 @@ where
             .split(" ")
             .collect::<Vec<_>>();
 
-        let offset = u64::from_str_radix(metadata[1], 16)
-            .map_err(|_| io::Error::new(io::ErrorKind::Other, "Failed to parse index offset."))?;
+        let offset = u64::from_str_radix(metadata[1], 16).map_err(|_| RpaError::ParseOffset)?;
 
         let key = match version {
             Version::V3_0 => {
                 let mut key = 0;
                 for subkey in &metadata[2..] {
-                    key ^= u64::from_str_radix(subkey, 16).map_err(|_| {
-                        io::Error::new(io::ErrorKind::Other, "Failed to parse key.")
-                    })?;
+                    key ^= u64::from_str_radix(subkey, 16).map_err(|_| RpaError::ParseKey)?;
                 }
                 Some(key)
             }
             Version::V3_2 => {
                 let mut key = 0;
                 for subkey in &metadata[3..] {
-                    key ^= u64::from_str_radix(subkey, 16).map_err(|_| {
-                        io::Error::new(io::ErrorKind::Other, "Failed to parse key.")
-                    })?;
+                    key ^= u64::from_str_radix(subkey, 16).map_err(|_| RpaError::ParseKey)?;
                 }
                 Some(key)
             }
@@ -107,13 +99,12 @@ where
         // Deserialize indexes using pickle.
         let options = DeOptions::default();
         let raw_indexes: HashMap<String, Value> = serde_pickle::from_slice(&contents[..], options)
-            .map_err(|_| io::Error::new(io::ErrorKind::Other, "Failed to deserialize indexes."))?;
+            .map_err(|_| RpaError::DeserializeIndex)?;
 
         // Map indexes to an easier format.
         let mut indexes = HashMap::new();
         for (path, value) in raw_indexes.into_iter() {
-            let value = Index::from_value(value, key)
-                .map_err(|_| io::Error::new(io::ErrorKind::Other, "Failed to format indexes."))?;
+            let value = Index::from_value(value, key)?;
 
             indexes.insert(path, value);
         }
@@ -126,7 +117,7 @@ impl<R> Archive<R>
 where
     R: Seek + BufRead,
 {
-    pub fn copy_file<W: Write>(&mut self, path: &str, writer: &mut W) -> io::Result<u64> {
+    pub fn copy_file<W: Write>(&mut self, path: &str, writer: &mut W) -> RpaResult<u64> {
         if let Some(index) = self.indexes.get(path) {
             return index.copy_to(&mut self.reader, writer);
         };
@@ -135,10 +126,7 @@ where
             return content.copy_to(writer);
         }
 
-        Err(io::Error::new(
-            io::ErrorKind::NotFound,
-            "File not found in archive or content.",
-        ))
+        Err(RpaError::NotFound(path.to_string()))
     }
 }
 
@@ -146,7 +134,7 @@ impl<R> Archive<R>
 where
     R: Seek + BufRead,
 {
-    pub fn flush<W: Seek + Write>(mut self, writer: &mut W) -> io::Result<FlushResult> {
+    pub fn flush<W: Seek + Write>(mut self, writer: &mut W) -> RpaResult<FlushResult> {
         let mut offset: u64 = 0;
 
         // Write a placeholder header to be filled later.
@@ -188,11 +176,8 @@ where
             let options = SerOptions::new().proto_v2();
             match serde_pickle::value_to_writer(&mut buffer, &values, options) {
                 Ok(_) => Ok(()),
-                Err(serde_pickle::Error::Io(e)) => Err(e),
-                Err(_) => Err(io::Error::new(
-                    io::ErrorKind::Other,
-                    "Failed to serialize archive indexes.",
-                )),
+                Err(serde_pickle::Error::Io(e)) => Err(RpaError::Io(e)),
+                Err(_) => Err(RpaError::SerializeIndex),
             }?;
 
             // Compress serialized data with zlib.
@@ -213,12 +198,7 @@ where
         let header = match self.version {
             Version::V3_0 => format!("RPA-3.0 {:016x} {:08x}\n", offset, key),
             Version::V2_0 => format!("RPA-2.0 {:016x}\n", offset),
-            Version::V3_2 | Version::V1_0 => {
-                return Err(io::Error::new(
-                    io::ErrorKind::Other,
-                    "version not supported",
-                ))
-            }
+            v @ (Version::V3_2 | Version::V1_0) => return Err(RpaError::WritingNotSupported(v)),
         };
         writer.write(&header.into_bytes())?;
 

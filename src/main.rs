@@ -1,11 +1,11 @@
 use std::{
     fs::{self, File},
-    io::{self, BufReader},
+    io::BufReader,
     path::PathBuf,
 };
 
 use clap::{Parser, Subcommand};
-use rpalib::Archive;
+use rpalib::{Archive, RpaResult};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -36,7 +36,7 @@ enum Command {
     },
 }
 
-fn main() -> io::Result<()> {
+fn main() -> RpaResult<()> {
     let args = Cli::parse();
 
     match args.command {

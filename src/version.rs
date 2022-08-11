@@ -1,6 +1,9 @@
-use std::io;
+use std::fmt::Display;
 
-#[derive(Debug)]
+use crate::{RpaError, RpaResult};
+
+#[derive(Clone, Debug)]
+#[repr(u8)]
 pub enum Version {
     V3_2,
     V3_0,
@@ -19,14 +22,31 @@ impl Version {
         }
     }
 
-    pub fn header_length(&self) -> io::Result<usize> {
+    pub fn header_length(&self) -> RpaResult<usize> {
         match self {
-            Version::V3_2 | Version::V3_0 => Ok(34),
+            Version::V3_0 => Ok(34),
             Version::V2_0 => Ok(25),
-            Version::V1_0 => Err(io::Error::new(
-                io::ErrorKind::Other,
-                "version not supported",
-            )),
+            v @ (Version::V3_2 | Version::V1_0) => Err(RpaError::WritingNotSupported(v.clone())),
+        }
+    }
+
+    pub fn write_support(&self) -> bool {
+        match self {
+            Version::V3_2 => false,
+            Version::V3_0 => true,
+            Version::V2_0 => true,
+            Version::V1_0 => false,
+        }
+    }
+}
+
+impl Display for Version {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Version::V3_2 => write!(f, "v3.2"),
+            Version::V3_0 => write!(f, "v3.0"),
+            Version::V2_0 => write!(f, "v2.0"),
+            Version::V1_0 => write!(f, "v1.0"),
         }
     }
 }
