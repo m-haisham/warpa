@@ -1,68 +1,60 @@
 use std::{
-    fs::File,
-    io::{self, BufReader},
+    fs::{self, File},
+    io::{self, BufRead, BufReader},
     path::PathBuf,
-    rc::Rc,
 };
 
-use rpalib::{Archive, Content, ContentKind};
+use clap::{Parser, Subcommand};
+use rpalib::Archive;
 
-macro_rules! debug {
-    ($label:ident) => {
-        println!("{} = {:?}", stringify!($label), $label)
-    };
-    ($label:ident = $value:expr) => {
-        println!("{} = {:?}", stringify!($label), $value)
-    };
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+struct Cli {
+    #[clap(short, long, action = clap::ArgAction::Count)]
+    verbose: u8,
+
+    #[clap(subcommand)]
+    command: Command,
+}
+
+#[derive(Subcommand, Debug)]
+enum Command {
+    // Extract files with full paths
+    X {
+        /// Paths to archives to extract.
+        paths: Vec<PathBuf>,
+
+        /// Root output directory. The default is current directory.
+        #[clap(short, long)]
+        out: Option<PathBuf>,
+    },
 }
 
 fn main() -> io::Result<()> {
-    let file = File::open("test.rpa")?;
-    let mut reader = BufReader::new(file);
+    let args = Cli::parse();
 
-    let mut archive = Archive::from_reader(&mut reader)?;
+    match args.command {
+        Command::X { paths, out } => {
+            let out = out.unwrap_or_else(|| PathBuf::new());
 
-    {
-        let path = Rc::from(PathBuf::from("audio/log.txt"));
-        let content = Content::new(Rc::clone(&path), ContentKind::File);
-        archive.content.insert(path, content);
+            for archive_path in paths {
+                let reader = BufReader::new(File::open(archive_path)?);
+                let mut archive = Archive::from_reader(reader)?;
+
+                for (output, index) in archive.indexes.iter() {
+                    let output = out.join(output);
+                    if let Some(parent) = output.parent() {
+                        if !parent.exists() {
+                            fs::create_dir_all(parent)?;
+                        }
+                    }
+
+                    let mut file = File::create(output)?;
+                    index.copy_to(&mut archive.reader, &mut file)?;
+                }
+            }
+
+            Ok(())
+        }
     }
-
-    let mut output = File::create("output.rpa")?;
-    // let mut writer = Cursor::new(Vec::new());
-
-    let result = archive.flush(&mut output)?;
-    result.into_archive(BufReader::new(output));
-
-    // for (path, index) in archive.indexes.iter() {
-    //     let path = PathBuf::from(path);
-    //     match path.parent() {
-    //         Some(parent) => {
-    //             if !parent.exists() {
-    //                 fs::create_dir_all(parent)?;
-    //             }
-    //         }
-    //         None => (),
-    //     }
-
-    //     let mut file = OpenOptions::new()
-    //         .write(true)
-    //         .truncate(true)
-    //         .create(true)
-    //         .open(&path)?;
-
-    //     println!(
-    //         "path = {}, start = {}, length = {}",
-    //         path.display(),
-    //         index.start,
-    //         index.length,
-    //     );
-
-    //     let mut scope = index.scope(&mut archive.reader)?;
-    //     let written = io::copy(&mut scope, &mut file)?;
-
-    //     debug!(written);
-    // }
-
-    Ok(())
 }

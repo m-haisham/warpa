@@ -128,14 +128,7 @@ where
 {
     pub fn copy_file<W: Write>(&mut self, path: &str, writer: &mut W) -> io::Result<u64> {
         if let Some(index) = self.indexes.get(path) {
-            let mut scope = index.scope(&mut self.reader)?;
-
-            // Append prefix to output
-            if let Some(prefix) = index.encoded_prefix()? {
-                writer.write(&prefix[..])?;
-            }
-
-            return io::copy(&mut scope, writer);
+            return index.copy_to(&mut self.reader, writer);
         };
 
         if let Some(content) = self.content.get(Path::new(path)) {

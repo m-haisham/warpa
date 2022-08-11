@@ -1,4 +1,4 @@
-use std::io::{self, Read, Seek, SeekFrom, Take};
+use std::io::{self, Read, Seek, SeekFrom, Take, Write};
 
 use encoding::{all::ISO_8859_1, Encoding};
 use serde_pickle::Value;
@@ -27,6 +27,7 @@ impl Index {
         }
     }
 
+    // TODO: optimize by moving values rather than borrowing vectors.
     pub fn from_value(value: Value, key: Option<u64>) -> Result<Self, InvalidPickleFormat> {
         match value {
             Value::List(values) => match values.as_slice() {
@@ -65,6 +66,16 @@ impl Index {
         self.length - self.prefix.as_ref().map(|v| v.len()).unwrap_or(0) as u64
     }
 
+    pub fn encoded_prefix(&self) -> io::Result<Option<Vec<u8>>> {
+        match self.prefix.as_ref() {
+            Some(prefix) => match ISO_8859_1.encode(prefix, encoding::EncoderTrap::Strict) {
+                Ok(bytes) => Ok(Some(bytes)),
+                Err(e) => return Err(io::Error::new(io::ErrorKind::Other, e)),
+            },
+            None => Ok(None),
+        }
+    }
+
     pub fn scope<'i, 'r, R: Seek + Read>(
         &'i self,
         reader: &'r mut R,
@@ -75,13 +86,18 @@ impl Index {
         Ok(take)
     }
 
-    pub fn encoded_prefix(&self) -> io::Result<Option<Vec<u8>>> {
-        match self.prefix.as_ref() {
-            Some(prefix) => match ISO_8859_1.encode(prefix, encoding::EncoderTrap::Strict) {
-                Ok(bytes) => Ok(Some(bytes)),
-                Err(e) => return Err(io::Error::new(io::ErrorKind::Other, e)),
-            },
-            None => Ok(None),
+    pub fn copy_to<'r, 'w, R, W>(&'r self, reader: &'r mut R, writer: &'w mut W) -> io::Result<u64>
+    where
+        R: Seek + Read,
+        W: Write,
+    {
+        let mut scope = self.scope(reader)?;
+
+        // Append prefix to output
+        if let Some(prefix) = self.encoded_prefix()? {
+            writer.write(&prefix[..])?;
         }
+
+        io::copy(&mut scope, writer)
     }
 }
