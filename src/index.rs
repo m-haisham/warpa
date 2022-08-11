@@ -28,21 +28,19 @@ impl Index {
     }
 
     pub fn from_value(value: Value, key: Option<u64>) -> Result<Self, InvalidPickleFormat> {
-        let values = match value {
-            Value::List(values) => match &values[..] {
-                [Value::List(values)] => Ok(values),
+        match value {
+            Value::List(values) => match values.as_slice() {
+                [Value::List(values)] => match values.as_slice() {
+                    [Value::I64(start), Value::I64(length)] => {
+                        Ok(Self::new(*start as u64, *length as u64, None, key))
+                    }
+                    [Value::I64(start), Value::I64(length), Value::String(prefix)] => Ok(
+                        Self::new(*start as u64, *length as u64, Some(prefix.clone()), key),
+                    ),
+                    _ => Err(InvalidPickleFormat),
+                },
                 _ => Err(InvalidPickleFormat),
             },
-            _ => Err(InvalidPickleFormat),
-        }?;
-
-        match values[..] {
-            [Value::I64(start), Value::I64(length)] => {
-                Ok(Self::new(start as u64, length as u64, None, key))
-            }
-            [Value::I64(start), Value::I64(length), Value::String(prefix)] => {
-                Ok(Self::new(start as u64, length as u64, Some(prefix), key))
-            }
             _ => Err(InvalidPickleFormat),
         }
     }
