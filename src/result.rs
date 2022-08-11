@@ -1,6 +1,5 @@
 use std::io;
 
-use encoding::codec::error;
 use thiserror::Error;
 
 use crate::Version;
@@ -24,7 +23,7 @@ pub enum RpaError {
     #[error("file not found in indexes or content: '{0}'")]
     NotFound(String),
 
-    #[error("writing archive not supported for version {0}")]
+    #[error("writing archive not supported for {0}")]
     WritingNotSupported(Version),
 
     #[error("failed to serialize archive index")]
