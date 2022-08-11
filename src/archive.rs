@@ -22,13 +22,10 @@ pub struct Archive<R: Seek + BufRead> {
     pub content: HashMap<Rc<Path>, Content>,
 }
 
-impl<R> Archive<R>
-where
-    R: Seek + BufRead,
-{
-    pub fn new(reader: R) -> Self {
+impl Archive<Cursor<Vec<u8>>> {
+    pub fn new() -> Self {
         Self {
-            reader,
+            reader: Cursor::new(Vec::new()),
             offset: 0,
             version: Version::V3_0,
             indexes: HashMap::new(),
@@ -36,7 +33,12 @@ where
             content: HashMap::new(),
         }
     }
+}
 
+impl<R> Archive<R>
+where
+    R: Seek + BufRead,
+{
     pub fn from_reader(mut reader: R) -> RpaResult<Self> {
         let mut version = String::new();
         reader.by_ref().take(7).read_to_string(&mut version)?;
@@ -110,6 +112,15 @@ where
         }
 
         Ok((offset, key, indexes))
+    }
+}
+
+impl<R> Archive<R>
+where
+    R: Seek + BufRead,
+{
+    pub fn add_content(&mut self, content: Content) -> Option<Content> {
+        self.content.insert(Rc::clone(&content.path), content)
     }
 }
 
