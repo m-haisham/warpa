@@ -133,6 +133,12 @@ where
 
         if let Some(index) = self.indexes.get(path) {
             let mut scope = index.scope(&mut self.reader)?;
+
+            // Append prefix to output
+            if let Some(prefix) = index.encoded_prefix()? {
+                writer.write(&prefix[..])?;
+            }
+
             return io::copy(&mut scope, writer);
         };
 
@@ -147,7 +153,6 @@ impl<R> Archive<R>
 where
     R: Seek + BufRead,
 {
-    /// TODO: Return result that can be converted into an archive with minimal effort.
     pub fn flush<W: Seek + Write>(mut self, writer: &mut W) -> io::Result<FlushResult> {
         let mut offset: u64 = 0;
 
@@ -164,7 +169,7 @@ where
             let mut scope = index.scope(&mut self.reader)?;
             let length = io::copy(&mut scope, writer)?;
 
-            indexes.insert(path, Index::new(offset, length, self.key));
+            indexes.insert(path, Index::new(offset, length, None, self.key));
             offset += length;
         }
 
@@ -173,7 +178,7 @@ where
             let length = content.copy_to(writer)?;
             let path = path.as_os_str().to_string_lossy().to_string();
 
-            indexes.insert(path, Index::new(offset, length, self.key));
+            indexes.insert(path, Index::new(offset, length, None, self.key));
             offset += length;
         }
 
@@ -213,11 +218,9 @@ where
 
         let key = self.key.unwrap_or(0);
         let header = match self.version {
-            // FIXME: wrong version 3.2 header.
-            Version::V3_2 => format!("RPA-3.2 {:016x} {:08x}\n", offset, key),
             Version::V3_0 => format!("RPA-3.0 {:016x} {:08x}\n", offset, key),
             Version::V2_0 => format!("RPA-2.0 {:016x}\n", offset),
-            Version::V1_0 => {
+            Version::V3_2 | Version::V1_0 => {
                 return Err(io::Error::new(
                     io::ErrorKind::Other,
                     "version not supported",
