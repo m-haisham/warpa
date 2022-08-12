@@ -37,20 +37,12 @@ impl RenpyArchive<Cursor<Vec<u8>>> {
 impl RenpyArchive<BufReader<File>> {
     /// Open archive from file.
     pub fn open(path: &Path) -> RpaResult<Self> {
-        Self::read(BufReader::new(File::open(path)?))
-    }
-}
+        let mut reader = BufReader::new(File::open(path)?);
 
-impl<R> RenpyArchive<R>
-where
-    R: Seek + BufRead,
-{
-    pub fn read(mut reader: R) -> RpaResult<Self> {
-        let mut version = String::new();
-        reader.by_ref().take(7).read_to_string(&mut version)?;
-
-        // FIXME: Doesnt quite support version 1 yet.
-        let version = RpaVersion::identify("", &version).ok_or(RpaError::IdentifyVersion)?;
+        let version = match path.file_name() {
+            Some(name) => Self::version(&mut reader, &name.to_string_lossy())?,
+            None => Self::version(&mut reader, "")?,
+        };
 
         let (offset, key, content) = Self::metadata(&mut reader, &version)?;
 
@@ -62,9 +54,33 @@ where
             content,
         })
     }
+}
 
-    pub fn metadata<'b>(
-        reader: &'b mut R,
+impl<R> RenpyArchive<R>
+where
+    R: Seek + BufRead,
+{
+    pub fn read(mut reader: R) -> RpaResult<Self> {
+        let version = Self::version(&mut reader, "")?;
+        let (offset, key, content) = Self::metadata(&mut reader, &version)?;
+
+        Ok(Self {
+            reader,
+            offset,
+            version,
+            key,
+            content,
+        })
+    }
+
+    pub fn version<'r>(reader: &'r mut R, file_name: &str) -> RpaResult<RpaVersion> {
+        let mut version = String::new();
+        reader.by_ref().take(7).read_to_string(&mut version)?;
+        RpaVersion::identify(file_name, &version).ok_or(RpaError::IdentifyVersion)
+    }
+
+    pub fn metadata<'r>(
+        reader: &'r mut R,
         version: &RpaVersion,
     ) -> RpaResult<(u64, Option<u64>, HashMap<Rc<Path>, Content>)> {
         let mut first_line = String::new();
