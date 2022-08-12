@@ -4,7 +4,7 @@ mod index;
 mod result;
 mod version;
 
-pub use archive::Archive;
+pub use archive::RenpyArchive;
 pub use content::{Content, ContentKind};
 pub use index::Index;
 pub use result::{RpaError, RpaResult};

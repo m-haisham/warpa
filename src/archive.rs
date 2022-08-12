@@ -12,7 +12,7 @@ use serde_pickle::{DeOptions, HashableValue, SerOptions, Value};
 use crate::{content::Content, index::Index, version::RpaVersion, RpaError, RpaResult};
 
 #[derive(Debug)]
-pub struct Archive<R: Seek + BufRead> {
+pub struct RenpyArchive<R: Seek + BufRead> {
     pub reader: R,
 
     pub key: Option<u64>,
@@ -23,7 +23,7 @@ pub struct Archive<R: Seek + BufRead> {
     pub content: HashMap<Rc<Path>, Content>,
 }
 
-impl Archive<Cursor<Vec<u8>>> {
+impl RenpyArchive<Cursor<Vec<u8>>> {
     pub fn new() -> Self {
         Self {
             reader: Cursor::new(Vec::new()),
@@ -36,14 +36,14 @@ impl Archive<Cursor<Vec<u8>>> {
     }
 }
 
-impl Archive<BufReader<File>> {
+impl RenpyArchive<BufReader<File>> {
     /// Open archive from file.
     pub fn open(path: &Path) -> RpaResult<Self> {
         Self::read(BufReader::new(File::open(path)?))
     }
 }
 
-impl<R> Archive<R>
+impl<R> RenpyArchive<R>
 where
     R: Seek + BufRead,
 {
@@ -124,7 +124,7 @@ where
     }
 }
 
-impl<R> Archive<R>
+impl<R> RenpyArchive<R>
 where
     R: Seek + BufRead,
 {
@@ -133,7 +133,7 @@ where
     }
 }
 
-impl<R> Archive<R>
+impl<R> RenpyArchive<R>
 where
     R: Seek + BufRead,
 {
@@ -150,7 +150,7 @@ where
     }
 }
 
-impl<R> Archive<R>
+impl<R> RenpyArchive<R>
 where
     R: Seek + BufRead,
 {
@@ -244,11 +244,11 @@ pub struct FlushResult {
 }
 
 impl FlushResult {
-    pub fn into_archive<R>(self, reader: R) -> Archive<R>
+    pub fn into_archive<R>(self, reader: R) -> RenpyArchive<R>
     where
         R: Seek + BufRead,
     {
-        Archive {
+        RenpyArchive {
             reader,
             key: self.key,
             offset: self.offset,
