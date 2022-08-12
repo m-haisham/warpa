@@ -14,8 +14,13 @@ use warpalib::{Content, RenpyArchive, RpaError, RpaResult};
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Cli {
+    /// Provide additional information (default only shows errors).
     #[clap(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
+
+    /// The encryption key used for creating v3 archives (default=0xDEADBEEF).
+    #[clap(short, long)]
+    key: Option<u8>,
 
     #[clap(subcommand)]
     command: Command,
@@ -23,7 +28,7 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Command {
-    // Add files to archive
+    // Add files to existing or new archive
     A {
         /// Path to archive.
         path: PathBuf,
@@ -115,7 +120,12 @@ fn run(args: Cli) -> Result<(), RpaError> {
                 } else if path.exists() {
                     return_error!("Expected an archive or empty path: {}", path.display())
                 } else {
-                    add_files(&path, RenpyArchive::new(), files, temp)
+                    let mut archive = RenpyArchive::new();
+                    if let Some(key) = args.key {
+                        archive.key = Some(key as u64);
+                    }
+
+                    add_files(&path, archive, files, temp)
                 }
             })
         }
