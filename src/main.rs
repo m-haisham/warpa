@@ -76,8 +76,7 @@ fn main() -> RpaResult<()> {
             temp_path.set_file_name(temp_name);
 
             let result = if path.exists() && path.is_file() {
-                let reader = BufReader::new(File::open(&path)?);
-                let archive = Archive::from_reader(reader)?;
+                let archive = Archive::open(&path)?;
                 add_files(path, archive, files, &temp_path)
             } else if path.exists() {
                 panic!("Expected an archive or empty path: {}", path.display());
@@ -99,8 +98,7 @@ fn main() -> RpaResult<()> {
             let out = out.unwrap_or_else(|| PathBuf::new());
 
             for archive_path in paths {
-                let reader = BufReader::new(File::open(archive_path)?);
-                let mut archive = Archive::from_reader(reader)?;
+                let mut archive = Archive::open(&archive_path)?;
 
                 for (output, index) in archive.indexes.iter() {
                     let output = out.join(output);
@@ -117,9 +115,8 @@ fn main() -> RpaResult<()> {
 
             Ok(())
         }
-        Command::L { archive: path } => {
-            let reader = BufReader::new(File::open(path)?);
-            let archive = Archive::from_reader(reader)?;
+        Command::L { archive } => {
+            let archive = Archive::open(&archive)?;
 
             for path in archive.indexes.keys() {
                 println!("{path}");

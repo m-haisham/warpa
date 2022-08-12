@@ -1,6 +1,7 @@
 use std::{
     collections::{BTreeMap, HashMap},
-    io::{self, BufRead, Cursor, Read, Seek, SeekFrom, Write},
+    fs::File,
+    io::{self, BufRead, BufReader, Cursor, Read, Seek, SeekFrom, Write},
     path::Path,
     rc::Rc,
 };
@@ -35,14 +36,22 @@ impl Archive<Cursor<Vec<u8>>> {
     }
 }
 
+impl Archive<BufReader<File>> {
+    /// Open archive from file.
+    pub fn open(path: &Path) -> RpaResult<Self> {
+        Self::read(BufReader::new(File::open(path)?))
+    }
+}
+
 impl<R> Archive<R>
 where
     R: Seek + BufRead,
 {
-    pub fn from_reader(mut reader: R) -> RpaResult<Self> {
+    pub fn read(mut reader: R) -> RpaResult<Self> {
         let mut version = String::new();
         reader.by_ref().take(7).read_to_string(&mut version)?;
 
+        // FIXME: Doesnt quite support version yet.
         let version = Version::identify("", &version).ok_or(RpaError::IdentifyVersion)?;
 
         let (offset, key, indexes) = Self::metadata(&mut reader, &version)?;
