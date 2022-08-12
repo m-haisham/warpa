@@ -9,7 +9,7 @@ use std::{
 use flate2::{read::ZlibDecoder, write::ZlibEncoder, Compression};
 use serde_pickle::{DeOptions, HashableValue, SerOptions, Value};
 
-use crate::{content::Content, index::Index, version::RpaVersion, RpaError, RpaResult};
+use crate::{index::Index, version::RpaVersion, Content, RpaError, RpaResult};
 
 #[derive(Debug)]
 pub struct RenpyArchive<R: Seek + BufRead> {
@@ -19,7 +19,6 @@ pub struct RenpyArchive<R: Seek + BufRead> {
     pub offset: u64,
 
     pub version: RpaVersion,
-    pub indexes: HashMap<String, Index>,
     pub content: HashMap<Rc<Path>, Content>,
 }
 
@@ -29,7 +28,6 @@ impl RenpyArchive<Cursor<Vec<u8>>> {
             reader: Cursor::new(Vec::new()),
             offset: 0,
             version: RpaVersion::V3_0,
-            indexes: HashMap::new(),
             key: Some(0xDEADBEEF),
             content: HashMap::new(),
         }
@@ -54,22 +52,21 @@ where
         // FIXME: Doesnt quite support version 1 yet.
         let version = RpaVersion::identify("", &version).ok_or(RpaError::IdentifyVersion)?;
 
-        let (offset, key, indexes) = Self::metadata(&mut reader, &version)?;
+        let (offset, key, content) = Self::metadata(&mut reader, &version)?;
 
         Ok(Self {
             reader,
             offset,
             version,
-            indexes,
             key,
-            content: HashMap::new(),
+            content,
         })
     }
 
     pub fn metadata<'b>(
         reader: &'b mut R,
         version: &RpaVersion,
-    ) -> RpaResult<(u64, Option<u64>, HashMap<String, Index>)> {
+    ) -> RpaResult<(u64, Option<u64>, HashMap<Rc<Path>, Content>)> {
         let mut first_line = String::new();
         reader.read_line(&mut first_line)?;
 
@@ -113,14 +110,14 @@ where
             .map_err(|_| RpaError::DeserializeIndex)?;
 
         // Map indexes to an easier format.
-        let mut indexes = HashMap::new();
+        let mut content = HashMap::new();
         for (path, value) in raw_indexes.into_iter() {
             let value = Index::from_value(value, key)?;
 
-            indexes.insert(path, value);
+            content.insert(Rc::from(Path::new(&path)), Content::Index(value));
         }
 
-        Ok((offset, key, indexes))
+        Ok((offset, key, content))
     }
 }
 
@@ -128,25 +125,12 @@ impl<R> RenpyArchive<R>
 where
     R: Seek + BufRead,
 {
-    pub fn add_content(&mut self, content: Content) -> Option<Content> {
-        self.content.insert(Rc::clone(&content.path), content)
-    }
-}
-
-impl<R> RenpyArchive<R>
-where
-    R: Seek + BufRead,
-{
-    pub fn copy_file<W: Write>(&mut self, path: &str, writer: &mut W) -> RpaResult<u64> {
-        if let Some(index) = self.indexes.get(path) {
-            return index.copy_to(&mut self.reader, writer);
-        };
-
+    pub fn copy_file<W: Write>(&mut self, path: &Path, writer: &mut W) -> RpaResult<u64> {
         if let Some(content) = self.content.get(Path::new(path)) {
-            return content.copy_to(writer);
+            return content.copy_to(&mut self.reader, writer);
         }
 
-        Err(RpaError::NotFound(path.to_string()))
+        Err(RpaError::NotFound(path.to_path_buf()))
     }
 }
 
@@ -165,18 +149,9 @@ where
         // Build indexes while writing to the archive.
         let mut indexes = HashMap::new();
 
-        // Copy data from existing archive (indexes).
-        for (path, index) in self.indexes.into_iter() {
-            let mut scope = index.scope(&mut self.reader)?;
-            let length = io::copy(&mut scope, writer)?;
-
-            indexes.insert(path, Index::new(offset, length, None, self.key));
-            offset += length;
-        }
-
         // Copy data from content.
         for (path, content) in self.content.into_iter() {
-            let length = content.copy_to(writer)?;
+            let length = content.copy_to(&mut self.reader, writer)?;
             let path = path.as_os_str().to_string_lossy().to_string();
 
             indexes.insert(path, Index::new(offset, length, None, self.key));
@@ -227,11 +202,16 @@ where
         // And done.
         writer.flush()?;
 
+        let content = indexes
+            .into_iter()
+            .map(|(k, v)| (Rc::from(Path::new(&k)), Content::Index(v)))
+            .collect();
+
         Ok(FlushResult {
             key: self.key,
             offset,
             version: self.version,
-            indexes,
+            content,
         })
     }
 }
@@ -240,7 +220,7 @@ pub struct FlushResult {
     key: Option<u64>,
     offset: u64,
     version: RpaVersion,
-    indexes: HashMap<String, Index>,
+    content: HashMap<Rc<Path>, Content>,
 }
 
 impl FlushResult {
@@ -253,8 +233,7 @@ impl FlushResult {
             key: self.key,
             offset: self.offset,
             version: self.version,
-            indexes: self.indexes,
-            content: HashMap::new(),
+            content: self.content,
         }
     }
 }

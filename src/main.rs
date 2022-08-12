@@ -6,7 +6,7 @@ use std::{
 };
 
 use clap::{Parser, Subcommand};
-use rpalib::{Content, ContentKind, RenpyArchive, RpaResult};
+use rpalib::{Content, RenpyArchive, RpaResult};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -58,7 +58,10 @@ fn main() -> RpaResult<()> {
                 temp_path: &Path,
             ) -> RpaResult<()> {
                 for file in files {
-                    archive.add_content(Content::new(Rc::from(file), ContentKind::File));
+                    let file = Rc::from(file);
+                    archive
+                        .content
+                        .insert(Rc::clone(&file), Content::File(file));
                 }
 
                 {
@@ -100,7 +103,7 @@ fn main() -> RpaResult<()> {
             for archive_path in paths {
                 let mut archive = RenpyArchive::open(&archive_path)?;
 
-                for (output, index) in archive.indexes.iter() {
+                for (output, content) in archive.content.iter() {
                     let output = out.join(output);
                     if let Some(parent) = output.parent() {
                         if !parent.exists() {
@@ -109,7 +112,7 @@ fn main() -> RpaResult<()> {
                     }
 
                     let mut file = File::create(output)?;
-                    index.copy_to(&mut archive.reader, &mut file)?;
+                    content.copy_to(&mut archive.reader, &mut file)?;
                 }
             }
 
@@ -118,8 +121,8 @@ fn main() -> RpaResult<()> {
         Command::L { archive } => {
             let archive = RenpyArchive::open(&archive)?;
 
-            for path in archive.indexes.keys() {
-                println!("{path}");
+            for path in archive.content.keys() {
+                println!("{}", path.display());
             }
 
             Ok(())

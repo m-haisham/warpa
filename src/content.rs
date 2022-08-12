@@ -1,28 +1,17 @@
 use std::{
     fs::File,
-    io::{self, Cursor, Write},
+    io::{self, Cursor, Read, Seek, Write},
     path::Path,
     rc::Rc,
 };
 
-use crate::RpaResult;
+use crate::{Index, RpaResult};
 
 #[derive(Debug)]
-pub struct Content {
-    pub path: Rc<Path>,
-    pub kind: ContentKind,
-}
-
-#[derive(Debug)]
-pub enum ContentKind {
-    File,
+pub enum Content {
+    Index(Index),
+    File(Rc<Path>),
     Raw(Vec<u8>),
-}
-
-impl Content {
-    pub fn new(path: Rc<Path>, kind: ContentKind) -> Self {
-        Content { path, kind }
-    }
 }
 
 impl Content {
@@ -30,16 +19,25 @@ impl Content {
     ///
     /// * `File` - Data is read from the file into the writer.
     /// * `Raw` - The raw buffer is copied into the writer.
-    pub fn copy_to<W: Write>(&self, writer: &mut W) -> RpaResult<u64> {
-        Ok(match &self.kind {
-            ContentKind::File => {
-                let mut file = File::open(&self.path)?;
-                io::copy(&mut file, writer)
+    pub fn copy_to<'a, 'r, 'w, R, W>(
+        &'a self,
+        reader: &'r mut R,
+        writer: &'w mut W,
+    ) -> RpaResult<u64>
+    where
+        R: Seek + Read,
+        W: Write,
+    {
+        match self {
+            Content::Index(index) => index.copy_to(reader, writer),
+            Content::File(path) => {
+                let mut file = File::open(path)?;
+                io::copy(&mut file, writer).map_err(|e| e.into())
             }
-            ContentKind::Raw(data) => {
+            Content::Raw(data) => {
                 let mut cursor = Cursor::new(data);
-                io::copy(&mut cursor, writer)
+                io::copy(&mut cursor, writer).map_err(|e| e.into())
             }
-        }?)
+        }
     }
 }

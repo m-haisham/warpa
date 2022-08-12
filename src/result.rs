@@ -1,4 +1,4 @@
-use std::io;
+use std::{io, path::PathBuf};
 
 use thiserror::Error;
 
@@ -21,7 +21,7 @@ pub enum RpaError {
     ParseKey,
 
     #[error("file not found in indexes or content: '{0}'")]
-    NotFound(String),
+    NotFound(PathBuf),
 
     #[error("writing archive not supported for {0}")]
     WritingNotSupported(RpaVersion),
