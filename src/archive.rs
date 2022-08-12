@@ -9,7 +9,7 @@ use std::{
 use flate2::{read::ZlibDecoder, write::ZlibEncoder, Compression};
 use serde_pickle::{DeOptions, HashableValue, SerOptions, Value};
 
-use crate::{content::Content, index::Index, version::Version, RpaError, RpaResult};
+use crate::{content::Content, index::Index, version::RpaVersion, RpaError, RpaResult};
 
 #[derive(Debug)]
 pub struct Archive<R: Seek + BufRead> {
@@ -18,7 +18,7 @@ pub struct Archive<R: Seek + BufRead> {
     pub key: Option<u64>,
     pub offset: u64,
 
-    pub version: Version,
+    pub version: RpaVersion,
     pub indexes: HashMap<String, Index>,
     pub content: HashMap<Rc<Path>, Content>,
 }
@@ -28,7 +28,7 @@ impl Archive<Cursor<Vec<u8>>> {
         Self {
             reader: Cursor::new(Vec::new()),
             offset: 0,
-            version: Version::V3_0,
+            version: RpaVersion::V3_0,
             indexes: HashMap::new(),
             key: Some(0xDEADBEEF),
             content: HashMap::new(),
@@ -52,7 +52,7 @@ where
         reader.by_ref().take(7).read_to_string(&mut version)?;
 
         // FIXME: Doesnt quite support version yet.
-        let version = Version::identify("", &version).ok_or(RpaError::IdentifyVersion)?;
+        let version = RpaVersion::identify("", &version).ok_or(RpaError::IdentifyVersion)?;
 
         let (offset, key, indexes) = Self::metadata(&mut reader, &version)?;
 
@@ -68,7 +68,7 @@ where
 
     pub fn metadata<'b>(
         reader: &'b mut R,
-        version: &Version,
+        version: &RpaVersion,
     ) -> RpaResult<(u64, Option<u64>, HashMap<String, Index>)> {
         let mut first_line = String::new();
         reader.read_line(&mut first_line)?;
@@ -80,14 +80,14 @@ where
         let offset = u64::from_str_radix(metadata[1], 16).map_err(|_| RpaError::ParseOffset)?;
 
         let key = match version {
-            Version::V3_0 => {
+            RpaVersion::V3_0 => {
                 let mut key = 0;
                 for subkey in &metadata[2..] {
                     key ^= u64::from_str_radix(subkey, 16).map_err(|_| RpaError::ParseKey)?;
                 }
                 Some(key)
             }
-            Version::V3_2 => {
+            RpaVersion::V3_2 => {
                 let mut key = 0;
                 for subkey in &metadata[3..] {
                     key ^= u64::from_str_radix(subkey, 16).map_err(|_| RpaError::ParseKey)?;
@@ -216,9 +216,11 @@ where
 
         let key = self.key.unwrap_or(0);
         let header = match self.version {
-            Version::V3_0 => format!("RPA-3.0 {:016x} {:08x}\n", offset, key),
-            Version::V2_0 => format!("RPA-2.0 {:016x}\n", offset),
-            v @ (Version::V3_2 | Version::V1_0) => return Err(RpaError::WritingNotSupported(v)),
+            RpaVersion::V3_0 => format!("RPA-3.0 {:016x} {:08x}\n", offset, key),
+            RpaVersion::V2_0 => format!("RPA-2.0 {:016x}\n", offset),
+            v @ (RpaVersion::V3_2 | RpaVersion::V1_0) => {
+                return Err(RpaError::WritingNotSupported(v))
+            }
         };
         writer.write(&header.into_bytes())?;
 
@@ -237,7 +239,7 @@ where
 pub struct FlushResult {
     key: Option<u64>,
     offset: u64,
-    version: Version,
+    version: RpaVersion,
     indexes: HashMap<String, Index>,
 }
 

@@ -2,7 +2,7 @@ use std::io;
 
 use thiserror::Error;
 
-use crate::Version;
+use crate::RpaVersion;
 
 pub type RpaResult<T> = Result<T, RpaError>;
 
@@ -24,7 +24,7 @@ pub enum RpaError {
     NotFound(String),
 
     #[error("writing archive not supported for {0}")]
-    WritingNotSupported(Version),
+    WritingNotSupported(RpaVersion),
 
     #[error("failed to serialize archive index")]
     SerializeIndex,
