@@ -6,7 +6,10 @@ use std::{
 };
 
 use clap::{Parser, Subcommand};
-use warpalib::{Content, RenpyArchive, RpaResult};
+use log::error;
+use simplelog::{ColorChoice, Config, LevelFilter, TermLogger};
+use std::io;
+use warpalib::{Content, RenpyArchive, RpaError, RpaResult};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -55,9 +58,37 @@ enum Command {
     },
 }
 
-fn main() -> RpaResult<()> {
+macro_rules! return_error {
+    ($($arg:tt)*) => {
+        Err(RpaError::Io(io::Error::new(io::ErrorKind::Other, format!($($arg)+))))
+    };
+}
+
+fn main() {
     let args = Cli::parse();
 
+    let level = match args.verbose {
+        0 => LevelFilter::Error,
+        1 => LevelFilter::Warn,
+        2 => LevelFilter::Info,
+        3 => LevelFilter::Debug,
+        _ => LevelFilter::Trace,
+    };
+
+    TermLogger::init(
+        level,
+        Config::default(),
+        simplelog::TerminalMode::Mixed,
+        ColorChoice::Auto,
+    )
+    .unwrap();
+
+    if let Err(e) = run(args) {
+        error!("{e}");
+    }
+}
+
+fn run(args: Cli) -> Result<(), RpaError> {
     match args.command {
         Command::A { path, files } => {
             fn add_files<R: Seek + BufRead>(
@@ -82,7 +113,7 @@ fn main() -> RpaResult<()> {
                     let archive = RenpyArchive::open(&path)?;
                     add_files(&path, archive, files, temp)
                 } else if path.exists() {
-                    panic!("Expected an archive or empty path: {}", path.display());
+                    return_error!("Expected an archive or empty path: {}", path.display())
                 } else {
                     add_files(&path, RenpyArchive::new(), files, temp)
                 }
@@ -129,7 +160,7 @@ fn main() -> RpaResult<()> {
 
             for file in files {
                 if let None = archive.content.remove(file.as_path()) {
-                    panic!("File not found in archive: '{}'", file.display())
+                    return return_error!("File not found in archive: '{}'", file.display());
                 }
             }
 
