@@ -20,7 +20,7 @@ struct Cli {
 
     /// The encryption key used for creating v3 archives (default=0xDEADBEEF).
     #[clap(short, long)]
-    key: Option<u8>,
+    key: Option<u64>,
 
     #[clap(subcommand)]
     command: Command,
@@ -28,7 +28,7 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Command {
-    // Add files to existing or new archive
+    /// Add files to existing or new archive
     A {
         /// Path to archive.
         path: PathBuf,
@@ -37,7 +37,7 @@ enum Command {
         files: Vec<PathBuf>,
     },
 
-    // Extract files with full paths
+    /// Extract files with full paths
     X {
         /// Paths to archives to extract.
         archives: Vec<PathBuf>,
@@ -47,13 +47,13 @@ enum Command {
         out: Option<PathBuf>,
     },
 
-    // List contents of archive
+    /// List contents of archive
     L {
         /// Path to archive.
         archive: PathBuf,
     },
 
-    // Delete files from archive
+    /// Delete files from archive
     D {
         /// Path to archive.
         archive: PathBuf,
@@ -63,7 +63,7 @@ enum Command {
     },
 }
 
-macro_rules! return_error {
+macro_rules! io_error {
     ($($arg:tt)*) => {
         Err(RpaError::Io(io::Error::new(io::ErrorKind::Other, format!($($arg)+))))
     };
@@ -101,7 +101,12 @@ fn run(args: Cli) -> Result<(), RpaError> {
                 mut archive: RenpyArchive<R>,
                 files: Vec<PathBuf>,
                 temp_path: &Path,
+                key: Option<u64>,
             ) -> RpaResult<()> {
+                if let Some(key) = key {
+                    archive.key = Some(key);
+                }
+
                 for file in files {
                     let file = Rc::from(file);
                     archive
@@ -116,16 +121,11 @@ fn run(args: Cli) -> Result<(), RpaError> {
             temp_scope(&path, |temp| {
                 if path.exists() && path.is_file() {
                     let archive = RenpyArchive::open(&path)?;
-                    add_files(&path, archive, files, temp)
+                    add_files(&path, archive, files, temp, args.key)
                 } else if path.exists() {
-                    return_error!("Expected an archive or empty path: {}", path.display())
+                    io_error!("Expected an archive or empty path: {}", path.display())
                 } else {
-                    let mut archive = RenpyArchive::new();
-                    if let Some(key) = args.key {
-                        archive.key = Some(key as u64);
-                    }
-
-                    add_files(&path, archive, files, temp)
+                    add_files(&path, RenpyArchive::new(), files, temp, args.key)
                 }
             })
         }
@@ -167,10 +167,13 @@ fn run(args: Cli) -> Result<(), RpaError> {
             files,
         } => {
             let mut archive = RenpyArchive::open(&path)?;
+            if let Some(key) = args.key {
+                archive.key = Some(key);
+            }
 
             for file in files {
                 if let None = archive.content.remove(file.as_path()) {
-                    return return_error!("File not found in archive: '{}'", file.display());
+                    return io_error!("File not found in archive: '{}'", file.display());
                 }
             }
 
