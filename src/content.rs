@@ -16,7 +16,7 @@ pub struct Content {
 #[derive(Debug)]
 pub enum ContentKind {
     File,
-    Raw { data: Vec<u8> },
+    Raw(Vec<u8>),
 }
 
 impl Content {
@@ -36,7 +36,7 @@ impl Content {
                 let mut file = File::open(&self.path)?;
                 io::copy(&mut file, writer)
             }
-            ContentKind::Raw { data } => {
+            ContentKind::Raw(data) => {
                 let mut cursor = Cursor::new(data);
                 io::copy(&mut cursor, writer)
             }

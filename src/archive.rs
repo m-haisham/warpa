@@ -51,7 +51,7 @@ where
         let mut version = String::new();
         reader.by_ref().take(7).read_to_string(&mut version)?;
 
-        // FIXME: Doesnt quite support version yet.
+        // FIXME: Doesnt quite support version 1 yet.
         let version = RpaVersion::identify("", &version).ok_or(RpaError::IdentifyVersion)?;
 
         let (offset, key, indexes) = Self::metadata(&mut reader, &version)?;
