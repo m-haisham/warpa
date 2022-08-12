@@ -17,8 +17,8 @@ pub enum Content {
 impl Content {
     /// Copy data from the content into the `writer`.
     ///
-    /// * `File` - Data is read from the file into the writer.
-    /// * `Raw` - The raw buffer is copied into the writer.
+    /// - `File` - Data is read from the file into the writer.
+    /// - `Raw` - The raw buffer is copied into the writer.
     pub fn copy_to<'a, 'r, 'w, R, W>(
         &'a self,
         reader: &'r mut R,
