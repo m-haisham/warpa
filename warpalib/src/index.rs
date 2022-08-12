@@ -26,7 +26,6 @@ impl Index {
         }
     }
 
-    // TODO: optimize by moving values rather than borrowing vectors.
     pub fn from_value(value: Value, key: Option<u64>) -> RpaResult<Self> {
         match value {
             Value::List(values) => match values.as_slice() {

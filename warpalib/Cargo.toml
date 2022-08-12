@@ -12,3 +12,10 @@ log = "0.4.17"
 serde = "1.0.143"
 serde-pickle = "1.1.1"
 thiserror = "1.0.32"
+
+[dev-dependencies]
+criterion = { version = "0.3.6", features = ["html_reports"] }
+
+[[bench]]
+name = "benchmark_index"
+harness = false
