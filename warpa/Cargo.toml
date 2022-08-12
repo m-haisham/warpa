@@ -7,4 +7,4 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "3.2.16", features = ["derive"] }
-rpalib = { version = "0.1.0", path = "../rpalib" }
+warpalib = { version = "0.1.0", path = "../warpalib" }

@@ -6,7 +6,7 @@ use std::{
 };
 
 use clap::{Parser, Subcommand};
-use rpalib::{Content, RenpyArchive, RpaResult};
+use warpalib::{Content, RenpyArchive, RpaResult};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]

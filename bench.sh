@@ -2,7 +2,7 @@
 
 cargo build -p warpa --release
 
-echo "rust:rpalib"
+echo "rust:warpa"
 time (./target/release/warpa x test.rpa)
 
 echo ""

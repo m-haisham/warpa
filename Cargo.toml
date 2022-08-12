@@ -1,2 +1,2 @@
 [workspace]
-members = ["rpalib", "warpa"]
+members = ["warpalib", "warpa"]
