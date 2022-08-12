@@ -1,9 +1,9 @@
 #!/bin/bash
 
-cargo build --release
+cargo build -p warpa --release
 
 echo "rust:rpalib"
-time (./target/release/rpalib)
+time (./target/release/warpa x test.rpa)
 
 echo ""
 echo ""
