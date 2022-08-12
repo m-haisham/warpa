@@ -44,6 +44,15 @@ enum Command {
         /// Path to archive.
         archive: PathBuf,
     },
+
+    // Delete files from archive
+    D {
+        /// Path to archive.
+        archive: PathBuf,
+
+        /// Files to be deleted
+        files: Vec<PathBuf>,
+    },
 }
 
 fn main() -> RpaResult<()> {
@@ -52,7 +61,7 @@ fn main() -> RpaResult<()> {
     match args.command {
         Command::A { path, files } => {
             fn add_files<R: Seek + BufRead>(
-                path: PathBuf,
+                path: &Path,
                 mut archive: RenpyArchive<R>,
                 files: Vec<PathBuf>,
                 temp_path: &Path,
@@ -64,35 +73,20 @@ fn main() -> RpaResult<()> {
                         .insert(Rc::clone(&file), Content::File(file));
                 }
 
-                {
-                    let mut temp_file = File::create(&temp_path)?;
-                    archive.flush(&mut temp_file)?;
-                }
-
-                fs::rename(temp_path, path)?;
+                replace_archive(archive, path, temp_path)?;
                 Ok(())
             }
 
-            let mut temp_path = path.clone();
-            let mut temp_name = path.file_name().unwrap().to_os_string();
-            temp_name.push(".temp");
-            temp_path.set_file_name(temp_name);
-
-            let result = if path.exists() && path.is_file() {
-                let archive = RenpyArchive::open(&path)?;
-                add_files(path, archive, files, &temp_path)
-            } else if path.exists() {
-                panic!("Expected an archive or empty path: {}", path.display());
-            } else {
-                add_files(path, RenpyArchive::new(), files, &temp_path)
-            };
-
-            // Delete the temporary file in case something went wrong
-            if temp_path.exists() {
-                fs::remove_file(temp_path)?;
-            }
-
-            result
+            temp_scope(&path, |temp| {
+                if path.exists() && path.is_file() {
+                    let archive = RenpyArchive::open(&path)?;
+                    add_files(&path, archive, files, temp)
+                } else if path.exists() {
+                    panic!("Expected an archive or empty path: {}", path.display());
+                } else {
+                    add_files(&path, RenpyArchive::new(), files, temp)
+                }
+            })
         }
         Command::X {
             archives: paths,
@@ -127,5 +121,53 @@ fn main() -> RpaResult<()> {
 
             Ok(())
         }
+        Command::D {
+            archive: path,
+            files,
+        } => {
+            let mut archive = RenpyArchive::open(&path)?;
+
+            for file in files {
+                if let None = archive.content.remove(file.as_path()) {
+                    panic!("File not found in archive: '{}'", file.display())
+                }
+            }
+
+            temp_scope(&path, |temp_path| {
+                replace_archive(archive, &path, temp_path)
+            })
+        }
     }
+}
+
+fn replace_archive<R: Seek + BufRead>(
+    archive: RenpyArchive<R>,
+    path: &Path,
+    temp_path: &Path,
+) -> RpaResult<()> {
+    {
+        let mut temp_file = File::create(&temp_path)?;
+        archive.flush(&mut temp_file)?;
+    }
+
+    fs::rename(temp_path, path)?;
+    Ok(())
+}
+
+fn temp_scope<F>(path: &Path, f: F) -> RpaResult<()>
+where
+    F: FnOnce(&Path) -> RpaResult<()>,
+{
+    let mut temp_path = path.to_path_buf();
+    let mut temp_name = path.file_name().unwrap().to_os_string();
+    temp_name.push(".temp");
+    temp_path.set_file_name(temp_name);
+
+    let result = f(temp_path.as_path());
+
+    if temp_path.exists() {
+        fs::remove_file(&temp_path)?;
+    }
+
+    result
 }
