@@ -17,5 +17,9 @@ thiserror = "1.0.32"
 criterion = { version = "0.3.6", features = ["html_reports"] }
 
 [[bench]]
-name = "benchmark_index"
+name = "archive"
+harness = false
+
+[[bench]]
+name = "index"
 harness = false

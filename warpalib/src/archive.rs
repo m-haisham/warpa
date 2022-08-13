@@ -7,6 +7,7 @@ use std::{
 };
 
 use flate2::{read::ZlibDecoder, write::ZlibEncoder, Compression};
+use log::{debug, info};
 use serde_pickle::{DeOptions, HashableValue, SerOptions, Value};
 
 use crate::{index::Index, version::RpaVersion, Content, RpaError, RpaResult};
@@ -24,6 +25,8 @@ pub struct RenpyArchive<R: Seek + BufRead> {
 
 impl RenpyArchive<Cursor<Vec<u8>>> {
     pub fn new() -> Self {
+        info!("Opening new empty in-memory archive");
+
         Self {
             reader: Cursor::new(Vec::new()),
             offset: 0,
@@ -37,6 +40,8 @@ impl RenpyArchive<Cursor<Vec<u8>>> {
 impl RenpyArchive<BufReader<File>> {
     /// Open archive from file.
     pub fn open(path: &Path) -> RpaResult<Self> {
+        info!("Opening archive from file: {}", path.display());
+
         let mut reader = BufReader::new(File::open(path)?);
 
         let version = match path.file_name() {
@@ -61,6 +66,8 @@ where
     R: Seek + BufRead,
 {
     pub fn read(mut reader: R) -> RpaResult<Self> {
+        info!("Opening archive from reader");
+
         let version = Self::version(&mut reader, "")?;
         let (offset, key, content) = Self::metadata(&mut reader, &version)?;
 
@@ -83,9 +90,13 @@ where
         reader: &'r mut R,
         version: &RpaVersion,
     ) -> RpaResult<(u64, Option<u64>, HashMap<Rc<Path>, Content>)> {
+        info!("Parsing metadata from archive version ({version})");
+
         let mut first_line = String::new();
         reader.read_line(&mut first_line)?;
+        debug!("Read first line: {first_line}");
 
+        // Dont't need the newline character
         let metadata = first_line[..(first_line.len() - 1)]
             .split(" ")
             .collect::<Vec<_>>();
@@ -109,29 +120,35 @@ where
             }
             _ => None,
         };
+        debug!("Parsed the obfuscation key: {key:?}");
+
+        info!("Retrieving indexes");
 
         // Retrieve indexes.
         reader.seek(SeekFrom::Start(offset))?;
         let mut contents = Vec::new();
         reader.read_to_end(&mut contents)?;
+        debug!("Read raw index bytes");
 
         // Decode indexes data.
         let mut decoder = ZlibDecoder::new(Cursor::new(contents));
         let mut contents = Vec::new();
         io::copy(&mut decoder, &mut contents)?;
+        debug!("Decoded index data with zlib");
 
         // Deserialize indexes using pickle.
         let options = DeOptions::default();
         let raw_indexes: HashMap<String, Value> = serde_pickle::from_slice(&contents[..], options)
             .map_err(|_| RpaError::DeserializeIndex)?;
+        debug!("Deserialized index data using pickle");
 
         // Map indexes to an easier format.
         let mut content = HashMap::new();
         for (path, value) in raw_indexes.into_iter() {
             let value = Index::from_value(value, key)?;
-
             content.insert(Rc::from(Path::new(&path)), Content::Index(value));
         }
+        debug!("Parsed index data to struct");
 
         Ok((offset, key, content))
     }
@@ -154,32 +171,43 @@ impl<R> RenpyArchive<R>
 where
     R: Seek + BufRead,
 {
-    pub fn flush<W: Seek + Write>(mut self, writer: &mut W) -> RpaResult<FlushResult> {
+    pub fn flush<W: Seek + Write>(mut self, writer: &mut W) -> RpaResult<()> {
+        info!("Commencing archive flush");
+
         let mut offset: u64 = 0;
 
         // Write a placeholder header to be filled later.
         // Not using seek since writer might not have any data.
-        let header = vec![0u8; self.version.header_length()?];
+        let header_length = self.version.header_length()?;
+        let header = vec![0u8; header_length];
         offset += writer.write(&header)? as u64;
+        debug!(
+            "Written placeholder header for version ({}) length ({} bytes)",
+            self.version, header_length,
+        );
 
         // Build indexes while writing to the archive.
+        info!("Rebuilding indexes from content");
         let mut indexes = HashMap::new();
 
         // Copy data from content.
         for (path, content) in self.content.into_iter() {
             let length = content.copy_to(&mut self.reader, writer)?;
             let path = path.as_os_str().to_string_lossy().to_string();
+            debug!("Written content from path ({path}) length ({length} bytes)",);
 
             indexes.insert(path, Index::new(offset, length, None, self.key));
             offset += length;
         }
 
         {
+            info!("Preparing to write indexes");
+
             // Convert indexes into serializable values.
             let values = Value::Dict(BTreeMap::from_iter(
                 indexes
-                    .iter()
-                    .map(|(k, v)| (HashableValue::String(k.clone()), v.into_value())),
+                    .into_iter()
+                    .map(|(k, v)| (HashableValue::String(k), v.into_value())),
             ));
 
             // Serialize indexes with picke protocol 2.
@@ -190,19 +218,26 @@ where
                 Err(serde_pickle::Error::Io(e)) => Err(RpaError::Io(e)),
                 Err(_) => Err(RpaError::SerializeIndex),
             }?;
+            debug!(
+                "Encoded indexes using pickle format 2: {} bytes",
+                buffer.len()
+            );
 
             // Compress serialized data with zlib.
             let mut input = Cursor::new(buffer);
             let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
             io::copy(&mut input, &mut encoder)?;
+            let compressed = encoder.finish()?;
+            debug!("Compressed indexes using zlib: {} bytes", compressed.len());
 
             // Write compressed data to writer.
-            let compressed = encoder.finish()?;
             let mut cursor = Cursor::new(compressed);
             io::copy(&mut cursor, writer)?;
+            debug!("Done writing indexes");
         }
 
         // Back to start, time to write the header.
+        info!("Rewinding and writing archive header");
         writer.rewind()?;
 
         let key = self.key.unwrap_or(0);
@@ -213,43 +248,17 @@ where
                 return Err(RpaError::WritingNotSupported(v))
             }
         };
-        writer.write(&header.into_bytes())?;
+
+        {
+            let header = header.into_bytes();
+            writer.write(&header)?;
+            debug!("Written header ({} bytes) key ({})", header.len(), key);
+        }
 
         // And done.
         writer.flush()?;
+        debug!("Done writing archive");
 
-        let content = indexes
-            .into_iter()
-            .map(|(k, v)| (Rc::from(Path::new(&k)), Content::Index(v)))
-            .collect();
-
-        Ok(FlushResult {
-            key: self.key,
-            offset,
-            version: self.version,
-            content,
-        })
-    }
-}
-
-pub struct FlushResult {
-    key: Option<u64>,
-    offset: u64,
-    version: RpaVersion,
-    content: HashMap<Rc<Path>, Content>,
-}
-
-impl FlushResult {
-    pub fn into_archive<R>(self, reader: R) -> RenpyArchive<R>
-    where
-        R: Seek + BufRead,
-    {
-        RenpyArchive {
-            reader,
-            key: self.key,
-            offset: self.offset,
-            version: self.version,
-            content: self.content,
-        }
+        Ok(())
     }
 }

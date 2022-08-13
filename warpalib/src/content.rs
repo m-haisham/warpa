@@ -5,6 +5,8 @@ use std::{
     rc::Rc,
 };
 
+use log::debug;
+
 use crate::{Index, RpaResult};
 
 #[derive(Debug)]
@@ -31,10 +33,14 @@ impl Content {
         match self {
             Content::Index(index) => index.copy_to(reader, writer),
             Content::File(path) => {
+                debug!("Copying file content: {}", path.display());
+
                 let mut file = File::open(path)?;
                 io::copy(&mut file, writer).map_err(|e| e.into())
             }
             Content::Raw(data) => {
+                debug!("Copying raw content: {} bytes", data.len());
+
                 let mut cursor = Cursor::new(data);
                 io::copy(&mut cursor, writer).map_err(|e| e.into())
             }

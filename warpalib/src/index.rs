@@ -1,6 +1,7 @@
 use std::io::{self, Read, Seek, SeekFrom, Take, Write};
 
 use encoding::{all::ISO_8859_1, Encoding};
+use log::debug;
 use serde_pickle::Value;
 
 use crate::{RpaError, RpaResult};
@@ -27,6 +28,8 @@ impl Index {
     }
 
     pub fn from_value(value: Value, key: Option<u64>) -> RpaResult<Self> {
+        debug!("Parsing index from value: {value}");
+
         match value {
             Value::List(values) => match values.as_slice() {
                 [Value::List(values)] => match values.as_slice() {
@@ -45,6 +48,11 @@ impl Index {
     }
 
     pub fn into_value(&self) -> Value {
+        debug!(
+            "Creating value from index: [{}, {}, {:?}]",
+            self.start, self.length, self.prefix
+        );
+
         let mut values = vec![
             Value::I64(self.start as i64),
             Value::I64(self.length as i64),
@@ -92,10 +100,17 @@ impl Index {
         R: Seek + Read,
         W: Write,
     {
+        debug!(
+            "Copying index bytes starting {} of length {}",
+            self.start,
+            self.actual_length()
+        );
+
         let mut scope = self.scope(reader)?;
 
         // Append prefix to output
         if let Some(prefix) = self.encoded_prefix()? {
+            debug!("Writing prefix: {} bytes", prefix.len());
             writer.write(&prefix[..])?;
         }
 

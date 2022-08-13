@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use log::info;
+
 use crate::{RpaError, RpaResult};
 
 #[derive(Clone, Debug)]
@@ -13,6 +15,8 @@ pub enum RpaVersion {
 
 impl RpaVersion {
     pub fn identify(file_name: &str, version: &str) -> Option<Self> {
+        info!("Identifying version from file name ({file_name}) and identity string ({version})");
+
         match version {
             "RPA-3.2" => Some(Self::V3_2),
             "RPA-3.0" => Some(Self::V3_0),
