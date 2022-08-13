@@ -4,6 +4,7 @@ use log::info;
 
 use crate::{RpaError, RpaResult};
 
+/// Represents archive versions.
 #[derive(Clone, Debug)]
 #[repr(u8)]
 pub enum RpaVersion {
@@ -14,6 +15,18 @@ pub enum RpaVersion {
 }
 
 impl RpaVersion {
+    /// Identify version from header string and file name.
+    ///
+    /// # Versions supported
+    ///
+    /// | Version | Header  | filename |
+    /// | :-----: | :-----: | :------: |
+    /// | V3_2    | RPA-3.2 | *        |
+    /// | V3_0    | RPA-3.0 | *        |
+    /// | V2_0    | RPA-2.0 | *        |
+    /// | V1_0    | *       | *.rpi    |
+    ///
+    /// If none of the above matches, `None` is returned.
     pub fn identify(file_name: &str, version: &str) -> Option<Self> {
         info!("Identifying version from file name ({file_name}) and identity string ({version})");
 
@@ -26,6 +39,11 @@ impl RpaVersion {
         }
     }
 
+    /// The length of the archive header for a specific version
+    ///
+    /// # Errors
+    ///
+    /// This function returns `WritingNotSupported` for v3.2 and v1.0.
     pub fn header_length(&self) -> RpaResult<usize> {
         match self {
             RpaVersion::V3_0 => Ok(34),
@@ -33,15 +51,6 @@ impl RpaVersion {
             v @ (RpaVersion::V3_2 | RpaVersion::V1_0) => {
                 Err(RpaError::WritingNotSupported(v.clone()))
             }
-        }
-    }
-
-    pub fn write_support(&self) -> bool {
-        match self {
-            RpaVersion::V3_2 => false,
-            RpaVersion::V3_0 => true,
-            RpaVersion::V2_0 => true,
-            RpaVersion::V1_0 => false,
         }
     }
 }

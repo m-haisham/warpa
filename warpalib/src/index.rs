@@ -5,6 +5,20 @@ use serde_pickle::Value;
 
 use crate::{RpaError, RpaResult};
 
+/// Index contains information required to read a specific
+/// file from the archive.
+///
+/// # Examples
+///
+/// ```
+/// let mut archive = RenpyArchive::open(Path::new("archive.rpa")).unwrap();
+/// let mut buffer = Vec::new();
+///
+/// let index = Index::new(1024, 1024, None);
+/// index.copy_to(&mut archive, &mut buffer).unwrap();
+///
+/// assert_eq!(1024, buffer.len());
+/// ```
 #[derive(Clone, Debug)]
 pub struct Index {
     pub start: u64,
@@ -30,6 +44,11 @@ impl Index {
     ///
     /// The current implementation does not use cloning,
     /// hence is better suited for when there is a prefix
+    ///
+    /// # Errors
+    ///
+    /// This function will return `RpaError::FormatIndex` if the format
+    /// of the value could not be recognized.
     pub fn from_value(value: Value, key: Option<u64>) -> RpaResult<Self> {
         debug!("Parsing index from value: {value:?}");
 
@@ -55,6 +74,7 @@ impl Index {
         }
     }
 
+    /// Create a pickle value from index
     pub fn into_value(&self) -> Value {
         debug!(
             "Creating value from index: [{}, {}, {:?}]",
@@ -76,13 +96,19 @@ impl Index {
 }
 
 impl Index {
-    /// The actual length of the indexed file with prefix taken into account.
+    /// The actual length of the indexed file.
+    ///
+    /// This is calculated by subtracting `prefix` length from the `length`.
     fn actual_length(&self) -> u64 {
         self.length - self.prefix.as_ref().map(|v| v.len()).unwrap_or(0) as u64
     }
 
     /// Return a reader with limited scope into only the data specified
     /// by this index.
+    ///
+    /// # Errors
+    ///
+    /// This function forwards errors that occur during `Seek` to start.
     pub fn scope<'i, 'r, R: Seek + Read>(
         &'i self,
         reader: &'r mut R,
@@ -92,8 +118,12 @@ impl Index {
         Ok(take)
     }
 
-    /// Copy data specified by this index into the writer.
-    pub fn copy_to<'r, 'w, R, W>(&'r self, reader: &'r mut R, writer: &'w mut W) -> RpaResult<u64>
+    /// Copy data specified by this index into the `writer`.
+    ///
+    /// # Errors
+    ///
+    /// This function will forward any errors that occur during `Seek`, `Read`, and `Write`.
+    pub fn copy_to<'r, 'w, R, W>(&'r self, reader: &'r mut R, writer: &'w mut W) -> io::Result<u64>
     where
         R: Seek + Read,
         W: Write,

@@ -12,23 +12,55 @@ use serde_pickle::{DeOptions, HashableValue, SerOptions, Value};
 
 use crate::{index::Index, version::RpaVersion, Content, RpaError, RpaResult};
 
+/// Represents a renpy archive.
+///
+/// This struct does not enforce in-memory or in-storage. It is left upto the
+/// use where the data is stored.
+///
+/// # Examples
+///
+/// ```
+/// use std::{path::Path, rc::Rc};
+/// use rpalib::{RenpyArchive, Content};
+///
+/// // Open in memory archive
+/// let mut archive = RenpyArchive::new();
+///
+/// // Insert new file into archive
+/// let file = Rc::from(Path::new("log.txt"));
+/// archive.content.insert(Rc::clone(file), Content::File(file)?;
+///
+/// // Write archive to a file
+/// let mut file = BufReader::new(File::open("archive.rpa")?);
+/// archive.flush(&mut file)?;
+/// ```
 #[derive(Debug)]
 pub struct RenpyArchive<R: Seek + BufRead> {
+    /// Handle to the archive data.
     pub reader: R,
 
+    /// Key used to encode and decode index locations.
     pub key: Option<u64>,
+
+    /// The offset where index data is stored.
     pub offset: u64,
 
+    /// The version of this archive.
     pub version: RpaVersion,
+
+    /// The content present in this archive.
     pub content: HashMap<Rc<Path>, Content>,
 }
 
 impl RenpyArchive<Cursor<Vec<u8>>> {
+    /// Create a new in-memory archive.
+    ///
+    /// This does not heap allocate.
     pub fn new() -> Self {
         info!("Opening new empty in-memory archive");
 
         Self {
-            reader: Cursor::new(Vec::new()),
+            reader: Cursor::new(Vec::with_capacity(0)),
             offset: 0,
             version: RpaVersion::V3_0,
             key: Some(0xDEADBEEF),
@@ -65,6 +97,7 @@ impl<R> RenpyArchive<R>
 where
     R: Seek + BufRead,
 {
+    /// Open an archive from bytes.
     pub fn read(mut reader: R) -> RpaResult<Self> {
         info!("Opening archive from reader");
 
@@ -80,12 +113,14 @@ where
         })
     }
 
+    /// Identify version by reading header and provided filename
     pub fn version<'r>(reader: &'r mut R, file_name: &str) -> RpaResult<RpaVersion> {
         let mut version = String::new();
         reader.by_ref().take(7).read_to_string(&mut version)?;
         RpaVersion::identify(file_name, &version).ok_or(RpaError::IdentifyVersion)
     }
 
+    /// Retrieve `offset`, `key`, and content indexes from the archive
     pub fn metadata<'r>(
         reader: &'r mut R,
         version: &RpaVersion,
@@ -158,9 +193,17 @@ impl<R> RenpyArchive<R>
 where
     R: Seek + BufRead,
 {
+    /// Copy content from a file in the archive to the `writer`.
+    ///
+    /// # Errors
+    ///
+    /// This function returns `NotFound` error if `path` is not present in
+    /// the archive and any errors raised during the copy process.
     pub fn copy_file<W: Write>(&mut self, path: &Path, writer: &mut W) -> RpaResult<u64> {
         if let Some(content) = self.content.get(Path::new(path)) {
-            return content.copy_to(&mut self.reader, writer);
+            return content
+                .copy_to(&mut self.reader, writer)
+                .map_err(|e| e.into());
         }
 
         Err(RpaError::NotFound(path.to_path_buf()))
@@ -171,6 +214,19 @@ impl<R> RenpyArchive<R>
 where
     R: Seek + BufRead,
 {
+    /// Consume and write the archive to the `writer`.
+    ///
+    /// The archive is consumed as this rebuilds the indexes and reorgenizes the
+    /// stored data.
+    ///
+    /// This function defers control of data flow by not enforcing that archive
+    /// or writer be in-memory. This means that both archive and writer could be
+    /// both a file and the program would use minimal memory since they wont be
+    /// loaded into memory.
+    ///
+    /// # Warnings
+    ///
+    /// Take care not to write to the same archive as being read from.
     pub fn flush<W: Seek + Write>(mut self, writer: &mut W) -> RpaResult<()> {
         info!("Commencing archive flush");
 
