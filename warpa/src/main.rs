@@ -2,6 +2,7 @@ use std::{
     fs::{self, File},
     io::{BufRead, Seek},
     path::{Path, PathBuf},
+    process::exit,
     rc::Rc,
 };
 
@@ -90,6 +91,7 @@ fn main() {
 
     if let Err(e) = run(args) {
         error!("{e}");
+        exit(1);
     }
 }
 
