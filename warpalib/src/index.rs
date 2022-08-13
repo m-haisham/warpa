@@ -1,6 +1,5 @@
 use std::io::{self, Read, Seek, SeekFrom, Take, Write};
 
-use encoding::{all::ISO_8859_1, Encoding};
 use log::debug;
 use serde_pickle::Value;
 
@@ -10,11 +9,11 @@ use crate::{RpaError, RpaResult};
 pub struct Index {
     pub start: u64,
     pub length: u64,
-    pub prefix: Option<String>,
+    pub prefix: Option<Vec<u8>>,
 }
 
 impl Index {
-    pub fn new(start: u64, length: u64, prefix: Option<String>, key: Option<u64>) -> Self {
+    pub fn new(start: u64, length: u64, prefix: Option<Vec<u8>>, key: Option<u64>) -> Self {
         let (start, length) = match key {
             Some(key) => (start ^ key, length ^ key),
             None => (start, length),
@@ -27,22 +26,31 @@ impl Index {
         }
     }
 
+    /// Create an index from pickle value.
+    ///
+    /// The current implementation does not use cloning,
+    /// hence is better suited for when there is a prefix
     pub fn from_value(value: Value, key: Option<u64>) -> RpaResult<Self> {
-        debug!("Parsing index from value: {value}");
+        debug!("Parsing index from value: {value:?}");
 
-        match value {
-            Value::List(values) => match values.as_slice() {
-                [Value::List(values)] => match values.as_slice() {
-                    [Value::I64(start), Value::I64(length)] => {
-                        Ok(Self::new(*start as u64, *length as u64, None, key))
-                    }
-                    [Value::I64(start), Value::I64(length), Value::String(prefix)] => Ok(
-                        Self::new(*start as u64, *length as u64, Some(prefix.clone()), key),
-                    ),
-                    _ => Err(RpaError::FormatIndex),
-                },
-                _ => Err(RpaError::FormatIndex),
-            },
+        let mut iter = match value {
+            Value::List(values) => {
+                let mut iter = values.into_iter();
+                match iter.next() {
+                    Some(Value::List(values)) => values.into_iter(),
+                    _ => return Err(RpaError::FormatIndex),
+                }
+            }
+            _ => return Err(RpaError::FormatIndex),
+        };
+
+        match (iter.next(), iter.next(), iter.next()) {
+            (Some(Value::I64(start)), Some(Value::I64(length)), None) => {
+                Ok(Self::new(start as u64, length as u64, None, key))
+            }
+            (Some(Value::I64(start)), Some(Value::I64(length)), Some(Value::Bytes(prefix))) => {
+                Ok(Self::new(start as u64, length as u64, Some(prefix), key))
+            }
             _ => Err(RpaError::FormatIndex),
         }
     }
@@ -59,7 +67,8 @@ impl Index {
         ];
 
         if let Some(prefix) = self.prefix.as_ref() {
-            values.push(Value::String(prefix.clone()))
+            // TODO: optimize by using move.
+            values.push(Value::Bytes(prefix.clone()));
         }
 
         Value::List(vec![Value::List(values)])
@@ -70,17 +79,6 @@ impl Index {
     /// The actual length of the indexed file with prefix taken into account.
     fn actual_length(&self) -> u64 {
         self.length - self.prefix.as_ref().map(|v| v.len()).unwrap_or(0) as u64
-    }
-
-    /// Encode the prefix with latin1 and return the bytes.
-    pub fn encoded_prefix(&self) -> RpaResult<Option<Vec<u8>>> {
-        match self.prefix.as_ref() {
-            Some(prefix) => match ISO_8859_1.encode(prefix, encoding::EncoderTrap::Strict) {
-                Ok(bytes) => Ok(Some(bytes)),
-                Err(e) => return Err(RpaError::EncodePrefix(e.to_string())),
-            },
-            None => Ok(None),
-        }
     }
 
     /// Return a reader with limited scope into only the data specified
@@ -109,7 +107,7 @@ impl Index {
         let mut scope = self.scope(reader)?;
 
         // Append prefix to output
-        if let Some(prefix) = self.encoded_prefix()? {
+        if let Some(prefix) = self.prefix.as_ref() {
             debug!("Writing prefix: {} bytes", prefix.len());
             writer.write(&prefix[..])?;
         }
