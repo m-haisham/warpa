@@ -30,7 +30,7 @@ struct Cli {
 #[derive(Subcommand, Debug)]
 enum Command {
     /// Add files to existing or new archive
-    A {
+    Add {
         /// Path to archive.
         path: PathBuf,
 
@@ -39,7 +39,7 @@ enum Command {
     },
 
     /// Extract files with full paths
-    X {
+    Extract {
         /// Paths to archives to extract.
         archives: Vec<PathBuf>,
 
@@ -49,13 +49,13 @@ enum Command {
     },
 
     /// List contents of archive
-    L {
+    List {
         /// Path to archive.
         archive: PathBuf,
     },
 
     /// Delete files from archive
-    D {
+    Remove {
         /// Path to archive.
         archive: PathBuf,
 
@@ -97,7 +97,7 @@ fn main() {
 
 fn run(args: Cli) -> Result<(), RpaError> {
     match args.command {
-        Command::A { path, files } => {
+        Command::Add { path, files } => {
             fn add_files<R: Seek + BufRead>(
                 path: &Path,
                 mut archive: RenpyArchive<R>,
@@ -131,7 +131,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
                 }
             })
         }
-        Command::X {
+        Command::Extract {
             archives: paths,
             out,
         } => {
@@ -155,7 +155,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
 
             Ok(())
         }
-        Command::L { archive } => {
+        Command::List { archive } => {
             let archive = RenpyArchive::open(&archive)?;
 
             for path in archive.content.keys() {
@@ -164,7 +164,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
 
             Ok(())
         }
-        Command::D {
+        Command::Remove {
             archive: path,
             files,
         } => {
