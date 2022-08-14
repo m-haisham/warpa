@@ -1,6 +1,6 @@
 use std::{
     fs::{self, File},
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 use warpalib::{RenpyArchive, RpaError, RpaResult};
