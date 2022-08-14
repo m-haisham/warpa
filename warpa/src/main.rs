@@ -1,17 +1,17 @@
 use std::{
     fs::{self, File},
-    io::{BufRead, Seek},
+    io::{BufRead, Cursor, Seek},
     path::{Path, PathBuf},
     process::exit,
-    rc::Rc,
 };
 
 use clap::{Parser, Subcommand};
 use log::error;
+use memmap::MmapOptions;
 use rayon::prelude::*;
 use simplelog::{ColorChoice, Config, LevelFilter, TermLogger};
 use std::io;
-use warpalib::{Content, RenpyArchive, RpaError, RpaResult};
+use warpalib::{RenpyArchive, RpaError, RpaResult};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -111,10 +111,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
                 }
 
                 for file in files {
-                    let file = Rc::from(file);
-                    archive
-                        .content
-                        .insert(Rc::clone(&file), Content::File(file));
+                    archive.add_file(file);
                 }
 
                 replace_archive(archive, path, temp_path)?;
@@ -141,19 +138,29 @@ fn run(args: Cli) -> Result<(), RpaError> {
             paths
                 .into_par_iter()
                 .map(|path| {
-                    let mut archive = RenpyArchive::open(&path)?;
+                    let file = File::open(path)?;
+                    let reader = unsafe { MmapOptions::new().map(&file)? };
+                    let archive = RenpyArchive::read(Cursor::new(reader))?;
 
-                    for (output, content) in archive.content.iter() {
-                        let output = out.join(output);
-                        if let Some(parent) = output.parent() {
-                            if !parent.exists() {
-                                fs::create_dir_all(parent)?;
-                            }
-                        }
+                    archive
+                        .content
+                        .into_par_iter()
+                        .map_init(
+                            || Cursor::new(archive.reader.get_ref()),
+                            |mut reader, (path, content)| {
+                                let output = out.join(path);
+                                if let Some(parent) = output.parent() {
+                                    if !parent.exists() {
+                                        fs::create_dir_all(parent)?;
+                                    }
+                                }
 
-                        let mut file = File::create(output)?;
-                        content.copy_to(&mut archive.reader, &mut file)?;
-                    }
+                                let mut file = File::create(output)?;
+                                content.copy_to(&mut reader, &mut file)?;
+                                Ok(())
+                            },
+                        )
+                        .collect::<RpaResult<Vec<()>>>()?;
 
                     Ok(())
                 })

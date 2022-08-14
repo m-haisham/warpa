@@ -2,7 +2,7 @@ use std::{
     collections::{BTreeMap, HashMap},
     fs::File,
     io::{self, BufRead, BufReader, Cursor, Read, Seek, SeekFrom, Write},
-    path::Path,
+    path::{Path, PathBuf},
     rc::Rc,
 };
 
@@ -49,7 +49,7 @@ pub struct RenpyArchive<R: Seek + BufRead> {
     pub version: RpaVersion,
 
     /// The content present in this archive.
-    pub content: HashMap<Rc<Path>, Content>,
+    pub content: HashMap<PathBuf, Content>,
 }
 
 impl RenpyArchive<Cursor<Vec<u8>>> {
@@ -124,7 +124,7 @@ where
     pub fn metadata<'r>(
         reader: &'r mut R,
         version: &RpaVersion,
-    ) -> RpaResult<(u64, Option<u64>, HashMap<Rc<Path>, Content>)> {
+    ) -> RpaResult<(u64, Option<u64>, HashMap<PathBuf, Content>)> {
         info!("Parsing metadata from archive version ({version})");
 
         let mut first_line = String::new();
@@ -181,7 +181,7 @@ where
         let mut content = HashMap::new();
         for (path, value) in raw_indexes.into_iter() {
             let value = Index::from_value(value, key)?;
-            content.insert(Rc::from(Path::new(&path)), Content::Index(value));
+            content.insert(PathBuf::from(&path), Content::Index(value));
         }
         debug!("Parsed index data to struct");
 
@@ -197,16 +197,15 @@ where
     /// archive with the same path.
     ///
     /// The data is not written into the archive until `flush` is called.
-    pub fn add_file(&mut self, path: &Path) -> Option<Content> {
-        let path = Rc::from(path);
-        self.content.insert(Rc::clone(&path), Content::File(path))
+    pub fn add_file(&mut self, path: PathBuf) -> Option<Content> {
+        self.content.insert(path.clone(), Content::File(path))
     }
 
     /// Add raw bytes to archive.
     ///
     /// The data is not written into the archive until `flush` is called.
-    pub fn add_raw(&mut self, path: &Path, bytes: Vec<u8>) -> Option<Content> {
-        self.content.insert(Rc::from(path), Content::Raw(bytes))
+    pub fn add_raw(&mut self, path: PathBuf, bytes: Vec<u8>) -> Option<Content> {
+        self.content.insert(path, Content::Raw(bytes))
     }
 
     /// Copy content from a file in the archive to the `writer`.

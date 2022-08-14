@@ -1,8 +1,7 @@
 use std::{
     fs::File,
     io::{self, Cursor, Read, Seek, Write},
-    path::Path,
-    rc::Rc,
+    path::PathBuf,
 };
 
 use log::debug;
@@ -16,7 +15,7 @@ pub enum Content {
     Index(Index),
 
     /// A file in the storage.
-    File(Rc<Path>),
+    File(PathBuf),
 
     /// Data in memory.
     Raw(Vec<u8>),

@@ -1,6 +1,6 @@
 use std::{
     fs::{self, File},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use warpalib::{RenpyArchive, RpaError, RpaResult};
@@ -11,7 +11,7 @@ fn main() -> RpaResult<()> {
     let mut archive = RenpyArchive::open(path)?;
 
     // Make a change to the archive.
-    archive.add_file(Path::new("README.md"));
+    archive.add_file(PathBuf::from("README.md"));
 
     // Saving and replacing the archive is a bit complicated since
     // we cannot read from and write to the same file at the same time
