@@ -75,7 +75,7 @@ impl Index {
     }
 
     /// Create a pickle value from index
-    pub fn into_value(&self) -> Value {
+    pub fn into_value(self) -> Value {
         debug!(
             "Creating value from index: [{}, {}, {:?}]",
             self.start, self.length, self.prefix
@@ -86,9 +86,8 @@ impl Index {
             Value::I64(self.length as i64),
         ];
 
-        if let Some(prefix) = self.prefix.as_ref() {
-            // TODO: optimize by using move.
-            values.push(Value::Bytes(prefix.clone()));
+        if let Some(prefix) = self.prefix {
+            values.push(Value::Bytes(prefix));
         }
 
         Value::List(vec![Value::List(values)])
