@@ -8,6 +8,7 @@ use std::{
 
 use clap::{Parser, Subcommand};
 use log::error;
+use rayon::prelude::*;
 use simplelog::{ColorChoice, Config, LevelFilter, TermLogger};
 use std::io;
 use warpalib::{Content, RenpyArchive, RpaError, RpaResult};
@@ -137,23 +138,27 @@ fn run(args: Cli) -> Result<(), RpaError> {
         } => {
             let out = out.unwrap_or_else(|| PathBuf::new());
 
-            for archive_path in paths {
-                let mut archive = RenpyArchive::open(&archive_path)?;
+            paths
+                .into_par_iter()
+                .map(|path| {
+                    let mut archive = RenpyArchive::open(&path)?;
 
-                for (output, content) in archive.content.iter() {
-                    let output = out.join(output);
-                    if let Some(parent) = output.parent() {
-                        if !parent.exists() {
-                            fs::create_dir_all(parent)?;
+                    for (output, content) in archive.content.iter() {
+                        let output = out.join(output);
+                        if let Some(parent) = output.parent() {
+                            if !parent.exists() {
+                                fs::create_dir_all(parent)?;
+                            }
                         }
+
+                        let mut file = File::create(output)?;
+                        content.copy_to(&mut archive.reader, &mut file)?;
                     }
 
-                    let mut file = File::create(output)?;
-                    content.copy_to(&mut archive.reader, &mut file)?;
-                }
-            }
-
-            Ok(())
+                    Ok(())
+                })
+                .collect::<RpaResult<Vec<()>>>()
+                .map(|_| ())
         }
         Command::List { archive } => {
             let archive = RenpyArchive::open(&archive)?;
