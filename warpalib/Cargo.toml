@@ -22,3 +22,6 @@ harness = false
 [[bench]]
 name = "index"
 harness = false
+
+[[example]]
+name = "add_file"
