@@ -25,3 +25,6 @@ harness = false
 
 [[example]]
 name = "add_file"
+
+[[example]]
+name = "modify_archive"
