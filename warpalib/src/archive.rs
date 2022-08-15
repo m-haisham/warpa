@@ -58,7 +58,12 @@ impl RenpyArchive<Cursor<Vec<u8>>> {
     /// This does not heap allocate.
     pub fn new() -> Self {
         info!("Opening new empty in-memory archive");
+        Self::default()
+    }
+}
 
+impl Default for RenpyArchive<Cursor<Vec<u8>>> {
+    fn default() -> Self {
         Self {
             reader: Cursor::new(Vec::with_capacity(0)),
             offset: 0,
@@ -93,6 +98,8 @@ impl RenpyArchive<BufReader<File>> {
     }
 }
 
+type MetaData = (u64, Option<u64>, HashMap<Rc<Path>, Content>);
+
 impl<R> RenpyArchive<R>
 where
     R: Seek + BufRead,
@@ -114,17 +121,14 @@ where
     }
 
     /// Identify version by reading header and provided filename
-    pub fn version<'r>(reader: &'r mut R, file_name: &str) -> RpaResult<RpaVersion> {
+    pub fn version(reader: &mut R, file_name: &str) -> RpaResult<RpaVersion> {
         let mut version = String::new();
         reader.by_ref().take(7).read_to_string(&mut version)?;
         RpaVersion::identify(file_name, &version).ok_or(RpaError::IdentifyVersion)
     }
 
     /// Retrieve `offset`, `key`, and content indexes from the archive
-    pub fn metadata<'r>(
-        reader: &'r mut R,
-        version: &RpaVersion,
-    ) -> RpaResult<(u64, Option<u64>, HashMap<Rc<Path>, Content>)> {
+    pub fn metadata(reader: &mut R, version: &RpaVersion) -> RpaResult<MetaData> {
         info!("Parsing metadata from archive version ({version})");
 
         let mut first_line = String::new();
@@ -133,7 +137,7 @@ where
 
         // Dont't need the newline character
         let metadata = first_line[..(first_line.len() - 1)]
-            .split(" ")
+            .split(' ')
             .collect::<Vec<_>>();
 
         let offset = u64::from_str_radix(metadata[1], 16).map_err(|_| RpaError::ParseOffset)?;
@@ -323,7 +327,7 @@ where
 
         {
             let header = header.into_bytes();
-            writer.write(&header)?;
+            writer.write_all(&header)?;
             debug!("Written header ({} bytes) key ({})", header.len(), key);
         }
 

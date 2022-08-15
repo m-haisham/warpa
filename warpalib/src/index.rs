@@ -138,9 +138,9 @@ impl Index {
         // Append prefix to output
         if let Some(prefix) = self.prefix.as_ref() {
             debug!("Writing prefix: {} bytes", prefix.len());
-            writer.write(&prefix[..])?;
+            writer.write_all(&prefix[..])?;
         }
 
-        Ok(io::copy(&mut scope, writer)?)
+        io::copy(&mut scope, writer)
     }
 }

@@ -136,7 +136,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
             archives: paths,
             out,
         } => {
-            let out = out.unwrap_or_else(|| PathBuf::new());
+            let out = out.unwrap_or_default();
 
             paths
                 .into_par_iter()
@@ -179,7 +179,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
             }
 
             for file in files {
-                if let None = archive.content.remove(file.as_path()) {
+                if archive.content.remove(file.as_path()).is_none() {
                     return io_error!("File not found in archive: '{}'", file.display());
                 }
             }

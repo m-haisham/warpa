@@ -28,11 +28,7 @@ impl Content {
     /// - `Index` - Data is copied from the archive (reader).
     /// - `File` - Data is copied from the file.
     /// - `Raw` - Raw in-memory buffer is copied.
-    pub fn copy_to<'a, 'r, 'w, R, W>(
-        &'a self,
-        reader: &'r mut R,
-        writer: &'w mut W,
-    ) -> io::Result<u64>
+    pub fn copy_to<R, W>(&self, reader: &mut R, writer: &mut W) -> io::Result<u64>
     where
         R: Seek + Read,
         W: Write,
