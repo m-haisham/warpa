@@ -19,19 +19,15 @@ use crate::{index::Index, version::RpaVersion, Content, RpaError, RpaResult};
 ///
 /// # Examples
 ///
-/// ```
-/// use std::{path::Path, rc::Rc};
-/// use rpalib::{RenpyArchive, Content};
-///
+/// ```rust
 /// // Open in memory archive
 /// let mut archive = RenpyArchive::new();
 ///
 /// // Insert new file into archive
-/// let file = Rc::from(Path::new("log.txt"));
-/// archive.content.insert(Rc::clone(file), Content::File(file)?;
+/// archive.add_file(Path::new("log.txt"));
 ///
 /// // Write archive to a file
-/// let mut file = BufReader::new(File::open("archive.rpa")?);
+/// let mut file = BufWriter::new(File::create("archive.rpa")?);
 /// archive.flush(&mut file)?;
 /// ```
 #[derive(Debug)]

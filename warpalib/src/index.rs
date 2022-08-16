@@ -10,7 +10,7 @@ use crate::{RpaError, RpaResult};
 ///
 /// # Examples
 ///
-/// ```
+/// ```rust
 /// let mut archive = RenpyArchive::open(Path::new("archive.rpa")).unwrap();
 /// let mut buffer = Vec::new();
 ///
@@ -21,12 +21,24 @@ use crate::{RpaError, RpaResult};
 /// ```
 #[derive(Clone, Debug)]
 pub struct Index {
+    /// Index of starting byte of data.
     pub start: u64,
+
+    /// The length of the data (as defined by archive index table).
     pub length: u64,
+
+    /// An optional prefix added before the data.
     pub prefix: Option<Vec<u8>>,
 }
 
 impl Index {
+    /// Create an index from values by deobfuscating if necessary (key is provided).
+    ///
+    /// Deobfuscation is done on `start` and `length` by running xor
+    /// operation with `key`.
+    ///
+    /// Passing deobfuscated values with keys would obfuscate them. This is used
+    /// when rebuilding the index for writing to a new archive.
     pub fn new(start: u64, length: u64, prefix: Option<Vec<u8>>, key: Option<u64>) -> Self {
         let (start, length) = match key {
             Some(key) => (start ^ key, length ^ key),
@@ -74,7 +86,7 @@ impl Index {
         }
     }
 
-    /// Create a pickle value from index
+    /// Consume and convert the index into a pickle value.
     pub fn into_value(self) -> Value {
         debug!(
             "Creating value from index: [{}, {}, {:?}]",

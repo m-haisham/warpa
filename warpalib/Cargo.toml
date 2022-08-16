@@ -3,7 +3,16 @@ name = "warpalib"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors = ["Mensch272 <mhaisham79>"]
+license = "MIT"
+
+description = "An unopiniated api for parsing renpy archives"
+documentation = "https://docs.rs/warpalib"
+homepage = "https://github.com/mensch272/warpa#readme"
+repository = "https://github.com/mensch272/warpa"
+readme = "README.md"
+keywords = ["renpy", "archive", "rpa"]
+categories = ["compression", "encoding"]
 
 [dependencies]
 flate2 = "1.0.24"

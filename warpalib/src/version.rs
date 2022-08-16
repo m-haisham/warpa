@@ -5,12 +5,28 @@ use log::info;
 use crate::{RpaError, RpaResult};
 
 /// Represents archive versions.
+///
+/// # Examples
+///
+/// ```rust
+/// // Identify version from file_name ("") and header ("RPA-3.0")
+/// let version = RpaVersion::identify("", "RPA-3.0");
+///
+/// assert_eq!(RpaVersion::V3_0, version);
+/// ```
 #[derive(Clone, Debug)]
 #[repr(u8)]
 pub enum RpaVersion {
+    /// Represents v3.2
     V3_2,
+
+    /// Represents v3.0
     V3_0,
+
+    /// Represents v2.0
     V2_0,
+
+    /// Represents v1.0
     V1_0,
 }
 

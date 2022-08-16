@@ -1,3 +1,7 @@
+#![warn(missing_docs)]
+
+//! An unopiniated api for parsing renpy archives.
+
 mod archive;
 mod content;
 mod index;

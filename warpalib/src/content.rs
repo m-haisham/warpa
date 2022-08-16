@@ -12,13 +12,13 @@ use crate::Index;
 /// Represents data stored in archive.
 #[derive(Debug)]
 pub enum Content {
-    /// Points to an index location in archive.
+    /// Points to a slice in archive.
     Index(Index),
 
     /// A file in the storage.
     File(Rc<Path>),
 
-    /// Data in memory.
+    /// Bytes in memory.
     Raw(Vec<u8>),
 }
 
