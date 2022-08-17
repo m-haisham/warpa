@@ -122,7 +122,7 @@ impl Index {
     ///
     /// # Errors
     ///
-    /// This function forwards errors that occur during `Seek` to start.
+    /// This function forwards errors that occur during `Seek` to `start` offset.
     pub fn scope<'i, 'r, R: Seek + Read>(
         &'i self,
         reader: &'r mut R,
