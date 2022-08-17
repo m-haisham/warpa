@@ -1,5 +1,11 @@
+# Cargo files.
 /target
 /Cargo.lock
 
+# Rpa files.
 /rpa
 *.rpa
+
+# Misc.
+bench.sh
+*.py
