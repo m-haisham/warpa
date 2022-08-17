@@ -10,7 +10,7 @@ use flate2::{read::ZlibDecoder, write::ZlibEncoder, Compression};
 use log::{debug, info};
 use serde_pickle::{DeOptions, HashableValue, SerOptions, Value};
 
-use crate::{index::Index, version::RpaVersion, Content, RpaError, RpaResult};
+use crate::{record::Record, version::RpaVersion, Content, RpaError, RpaResult};
 
 /// Represents a renpy archive.
 ///
@@ -190,8 +190,8 @@ where
         // Map indexes to an easier format.
         let mut content = HashMap::new();
         for (path, value) in raw_indexes.into_iter() {
-            let value = Index::from_value(value, key)?;
-            content.insert(Rc::from(Path::new(&path)), Content::Index(value));
+            let value = Record::from_value(value, key)?;
+            content.insert(Rc::from(Path::new(&path)), Content::Record(value));
         }
         debug!("Parsed index data to struct");
 
@@ -278,7 +278,7 @@ where
             let path = path.as_os_str().to_string_lossy().to_string();
             debug!("Written content from path ({path}) length ({length} bytes)",);
 
-            indexes.insert(path, Index::new(offset, length, None, self.key));
+            indexes.insert(path, Record::new(offset, length, None, self.key));
             offset += length;
         }
 

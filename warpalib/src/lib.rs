@@ -5,11 +5,11 @@
 mod archive;
 mod content;
 mod error;
-mod index;
+mod record;
 mod version;
 
 pub use archive::RenpyArchive;
 pub use content::Content;
 pub use error::{RpaError, RpaResult};
-pub use index::Index;
+pub use record::Record;
 pub use version::RpaVersion;

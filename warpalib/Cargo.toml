@@ -29,7 +29,7 @@ name = "archive"
 harness = false
 
 [[bench]]
-name = "index"
+name = "record"
 harness = false
 
 [[example]]

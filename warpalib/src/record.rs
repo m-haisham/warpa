@@ -12,18 +12,18 @@ use crate::{RpaError, RpaResult};
 ///
 /// ```rust
 /// use std::{path::Path, io::Cursor};
-/// use warpalib::Index;
+/// use warpalib::Record;
 ///
 /// let mut reader = Cursor::new(vec![0u8; 2048]);
 /// let mut writer = vec![];
 ///
-/// let index = Index::new(1024, 1024, None, None);
-/// index.copy_to(&mut reader, &mut writer).unwrap();
+/// let record = Record::new(1024, 1024, None, None);
+/// record.copy_section(&mut reader, &mut writer).unwrap();
 ///
 /// assert_eq!(1024, writer.len());
 /// ```
 #[derive(Clone, Debug)]
-pub struct Index {
+pub struct Record {
     /// Index of starting byte of data.
     pub start: u64,
 
@@ -34,7 +34,7 @@ pub struct Index {
     pub prefix: Option<Vec<u8>>,
 }
 
-impl Index {
+impl Record {
     /// Create an index from values by deobfuscating if necessary (key is provided).
     ///
     /// Deobfuscation is done on `start` and `length` by running xor
@@ -109,7 +109,7 @@ impl Index {
     }
 }
 
-impl Index {
+impl Record {
     /// The actual length of the indexed file.
     ///
     /// This is calculated by subtracting `prefix` length from the `length`.
@@ -132,12 +132,19 @@ impl Index {
         Ok(take)
     }
 
-    /// Copy data specified by this index into the `writer`.
+    /// Copy the data specified by this record from `reader` into the `writer`.
+    ///
+    /// The process involves writing prefix if available and copying bytes starting
+    /// from the offset `start` and writing a specific `length` of bytes to `writer`.
     ///
     /// # Errors
     ///
     /// This function will forward any errors that occur during `Seek`, `Read`, and `Write`.
-    pub fn copy_to<'r, 'w, R, W>(&'r self, reader: &'r mut R, writer: &'w mut W) -> io::Result<u64>
+    pub fn copy_section<'r, 'w, R, W>(
+        &'r self,
+        reader: &'r mut R,
+        writer: &'w mut W,
+    ) -> io::Result<u64>
     where
         R: Seek + Read,
         W: Write,

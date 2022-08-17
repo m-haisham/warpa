@@ -7,13 +7,13 @@ use std::{
 
 use log::debug;
 
-use crate::Index;
+use crate::Record;
 
 /// Represents data stored in archive.
 #[derive(Debug)]
 pub enum Content {
     /// Points to a slice in archive.
-    Index(Index),
+    Record(Record),
 
     /// A file in the storage.
     File(Rc<Path>),
@@ -34,7 +34,7 @@ impl Content {
         W: Write,
     {
         match self {
-            Content::Index(index) => index.copy_to(reader, writer),
+            Content::Record(index) => index.copy_section(reader, writer),
             Content::File(path) => {
                 debug!("Copying file content: {}", path.display());
 
