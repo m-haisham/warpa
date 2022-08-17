@@ -11,13 +11,16 @@ use crate::{RpaError, RpaResult};
 /// # Examples
 ///
 /// ```rust
-/// let mut archive = RenpyArchive::open(Path::new("archive.rpa")).unwrap();
-/// let mut buffer = Vec::new();
+/// use std::{path::Path, io::Cursor};
+/// use warpalib::Index;
 ///
-/// let index = Index::new(1024, 1024, None);
-/// index.copy_to(&mut archive, &mut buffer).unwrap();
+/// let mut reader = Cursor::new(vec![0u8; 2048]);
+/// let mut writer = vec![];
 ///
-/// assert_eq!(1024, buffer.len());
+/// let index = Index::new(1024, 1024, None, None);
+/// index.copy_to(&mut reader, &mut writer).unwrap();
+///
+/// assert_eq!(1024, writer.len());
 /// ```
 #[derive(Clone, Debug)]
 pub struct Index {

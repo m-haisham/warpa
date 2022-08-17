@@ -20,15 +20,25 @@ use crate::{index::Index, version::RpaVersion, Content, RpaError, RpaResult};
 /// # Examples
 ///
 /// ```rust
+/// use warpalib::RenpyArchive;
+/// use std::{
+///     io::{BufWriter, Cursor},
+///     fs::File,
+///     path::Path,
+/// };
+///
 /// // Open in memory archive
 /// let mut archive = RenpyArchive::new();
 ///
-/// // Insert new file into archive
-/// archive.add_file(Path::new("log.txt"));
+/// // Insert new data into archive
+/// archive.add_raw(Path::new("log.txt"), vec![0u8; 1024]);
+///
+/// // or, insert new file
+/// // archive.add_file(Path::new("log.txt"));
 ///
 /// // Write archive to a file
-/// let mut file = BufWriter::new(File::create("archive.rpa")?);
-/// archive.flush(&mut file)?;
+/// let mut writer = Cursor::new(vec![]);
+/// archive.flush(&mut writer).expect("Failed to write archive");
 /// ```
 #[derive(Debug)]
 pub struct RenpyArchive<R: Seek + BufRead> {

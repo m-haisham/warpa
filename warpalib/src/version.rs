@@ -9,12 +9,14 @@ use crate::{RpaError, RpaResult};
 /// # Examples
 ///
 /// ```rust
+/// use warpalib::RpaVersion;
+///
 /// // Identify version from file_name ("") and header ("RPA-3.0")
 /// let version = RpaVersion::identify("", "RPA-3.0");
 ///
-/// assert_eq!(RpaVersion::V3_0, version);
+/// assert_eq!(Some(RpaVersion::V3_0), version);
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 #[repr(u8)]
 pub enum RpaVersion {
     /// Represents v3.2

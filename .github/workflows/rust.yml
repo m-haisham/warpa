@@ -1,4 +1,4 @@
-name: Build
+name: Rust
 
 on:
   push:
@@ -10,13 +10,17 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-
+  test:
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v3
+
     - name: Build
-      run: cargo build --verbose
+      run: |
+        cargo build -p warpalib --verbose
+        cargo build -p warpa --verbose
+    
     - name: Run tests
-      run: cargo test --verbose
+      run: |
+        cargo test -p warpalib --verbose
+        cargo test -p warpa --verbose
