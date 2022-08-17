@@ -8,6 +8,9 @@ mod error;
 mod record;
 mod version;
 
+#[cfg(feature = "glob")]
+mod glob;
+
 pub use archive::RenpyArchive;
 pub use content::Content;
 pub use error::{RpaError, RpaResult};

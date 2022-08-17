@@ -21,8 +21,14 @@ serde = "1.0.143"
 serde-pickle = "1.1.1"
 thiserror = "1.0.32"
 
+# Optional.
+glob = { version = "0.3.0", optional = true }
+
 [dev-dependencies]
 criterion = { version = "0.3.6", features = ["html_reports"] }
+
+[features]
+glob = ["dep:glob"]
 
 [[bench]]
 name = "archive"
