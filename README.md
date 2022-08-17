@@ -1,5 +1,10 @@
 # Warpa
 
+![Crates.io](https://img.shields.io/crates/v/warpalib)
+![Crates.io](https://img.shields.io/crates/d/warpalib)
+![Crates.io](https://img.shields.io/crates/l/warpalib)
+![docs.rs](https://img.shields.io/docsrs/warpalib)
+
 Warpa is a command-line tool used to create and extract from renpy archives (rpa).
 
 ## Support
@@ -33,35 +38,7 @@ SUBCOMMANDS:
     remove     Delete files from archive
 ```
 
-### Library
-
-The following example shows how to open an archive and update it.
-
-```rust
-// Open a new archive.
-let mut archive = RenpyArchive::new();
-
-// Or, open a file.
-let mut archive = RenpyArchive::open("archive.rpa")?
-
-// Add a file.
-let path = Rc::from(Path::new("file.txt"));
-archive.content.insert(Rc::clone(path), Content::File(path));
-
-// Add raw bytes.
-let path = Rc::from(Path::new("raw.txt"));
-let bytes = vec![];
-archive.content.insert(path, Content::Raw(bytes));
-
-// Remove content.
-archive.content.remove(&Path::new("existing.txt"));
-
-// Save the current archive state.
-let mut new_archive = File::create("file")?;
-archive.flush(&mut new_archive)?;
-```
-
-More [examples](warpalib/examples) in warpalib.
+[Examples](warpalib/examples) in warpalib.
 
 ## License
 
