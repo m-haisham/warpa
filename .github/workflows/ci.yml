@@ -1,4 +1,4 @@
-name: Rust
+name: CI
 
 on:
   push:
@@ -10,31 +10,23 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-    - name: Build
-      run: |
-        cargo build -p warpalib --verbose
-        cargo build -p warpa --verbose
-
   test:
-    name: Test suite
+    name: Test
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - name: Run tests
-      run: |
-        cargo test -p warpalib --verbose
-        cargo test -p warpa --verbose
-
+      - uses: actions/checkout@v3
+      - name: Build
+        run: cargo build --verbose --all-features
+      - name: Lint
+        run: cargo clippy --verbose --all-features
+      - name: Test
+        run: cargo test --verbose --all-features
+  
   publish:
     name: Publish
     runs-on: ubuntu-latest
     if: github.event_name != 'pull_request'
-    needs: [build, test]
+    needs: [test]
     steps:
     - uses: actions/checkout@v3
     - uses: actions-rs/toolchain@v1
