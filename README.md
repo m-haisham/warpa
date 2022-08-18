@@ -7,20 +7,13 @@
 
 Warpa is a command-line tool used to create and extract from renpy archives (rpa).
 
+The program fully supports v3.0 and v2.0 and reading v3.2.
+
 ## Install
 
 ```bash
 cargo install --git https://github.com/mensch272/warpa
 ```
-
-## Support
-
-| Version | Read | Write |
-| ------- | ---- | ----- |
-| 3.2     | Yes  | No    |
-| 3.0     | Yes  | Yes   |
-| 2.0     | Yes  | Yes   |
-| 1.0     | No   | No    |
 
 ## Usage
 
