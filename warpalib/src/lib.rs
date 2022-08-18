@@ -1,6 +1,13 @@
 #![warn(missing_docs)]
 
 //! An unopiniated api for parsing renpy archives.
+//!
+//! # Installation
+//!
+//! ```toml
+//! [dependencies]
+//! warpalib = "0.1.0"
+//! ```
 
 mod archive;
 mod content;
