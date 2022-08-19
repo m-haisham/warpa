@@ -10,4 +10,8 @@ clap = { version = "3.2.16", features = ["derive"] }
 log = "0.4.17"
 rayon = "1.5.3"
 simplelog = "0.12.0"
-warpalib = { version = "0.1.0", path = "../warpalib" }
+
+[dependencies.warpalib]
+version = "0.1.0"
+path = "../warpalib"
+features = ["glob"]

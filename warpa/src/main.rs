@@ -7,7 +7,7 @@ use std::{
 };
 
 use clap::{Parser, Subcommand};
-use log::error;
+use log::{error, info};
 use rayon::prelude::*;
 use simplelog::{ColorChoice, Config, LevelFilter, TermLogger};
 use std::io;
@@ -47,6 +47,10 @@ enum Command {
         /// Root output directory. The default is current directory.
         #[clap(short, long)]
         out: Option<PathBuf>,
+
+        /// Extract files matching the given glob pattern
+        #[clap(short, long)]
+        pattern: Option<String>,
     },
 
     /// List contents of archive
@@ -135,6 +139,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
         Command::Extract {
             archives: paths,
             out,
+            pattern,
         } => {
             let out = out.unwrap_or_default();
 
@@ -143,7 +148,14 @@ fn run(args: Cli) -> Result<(), RpaError> {
                 .map(|path| {
                     let mut archive = RenpyArchive::open(&path)?;
 
-                    for (output, content) in archive.content.iter() {
+                    let iter: Box<dyn Iterator<Item = (&Rc<Path>, &Content)>> = match &pattern {
+                        Some(pattern) => Box::new(archive.content.glob(&pattern)?),
+                        None => Box::new(archive.content.iter()),
+                    };
+
+                    for (output, content) in iter {
+                        info!("{}", output.display());
+
                         let output = out.join(output);
                         if let Some(parent) = output.parent() {
                             if !parent.exists() {
