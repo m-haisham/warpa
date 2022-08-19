@@ -1,6 +1,8 @@
 use std::{
+    collections::{hash_map, HashMap},
     fs::File,
     io::{self, Cursor, Read, Seek, Write},
+    ops::{Deref, DerefMut},
     path::Path,
     rc::Rc,
 };
@@ -8,6 +10,40 @@ use std::{
 use log::debug;
 
 use crate::Record;
+
+/// Represents contents of an archive mapped to their path
+#[derive(Default, Debug)]
+pub struct ContentMap(HashMap<Rc<Path>, Content>);
+
+impl From<HashMap<Rc<Path>, Content>> for ContentMap {
+    fn from(value: HashMap<Rc<Path>, Content>) -> Self {
+        ContentMap(value)
+    }
+}
+
+impl Deref for ContentMap {
+    type Target = HashMap<Rc<Path>, Content>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for ContentMap {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl IntoIterator for ContentMap {
+    type Item = (Rc<Path>, Content);
+
+    type IntoIter = hash_map::IntoIter<Rc<Path>, Content>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
 
 /// Represents data stored in archive.
 #[derive(Debug)]

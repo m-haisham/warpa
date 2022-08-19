@@ -10,9 +10,14 @@ pub type RpaResult<T> = Result<T, RpaError>;
 /// Represents errors that the library can raise.
 #[derive(Error, Debug)]
 pub enum RpaError {
-    /// Wrapper for `io::Error`.
+    /// Wraps [`io::Error`].
     #[error("{0}")]
     Io(#[from] io::Error),
+
+    /// Wraps [`glob::PatternError`]
+    #[cfg(feature = "glob")]
+    #[error("{0}")]
+    GlobPattern(#[from] glob::PatternError),
 
     /// Failed to identify archive version.
     #[error("failed to identify archive version")]

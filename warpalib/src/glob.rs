@@ -1,17 +1,9 @@
 use glob::{Pattern, PatternError};
-use std::{
-    io::{BufRead, Seek},
-    path::Path,
-    rc::Rc,
-    str::FromStr,
-};
+use std::{path::Path, rc::Rc, str::FromStr};
 
-use crate::{Content, RenpyArchive};
+use crate::{Content, ContentMap};
 
-impl<R> RenpyArchive<R>
-where
-    R: Seek + BufRead,
-{
+impl ContentMap {
     /// Return an iterator that produces all the contents in the archive
     /// that match the given pattern.
     ///
@@ -31,7 +23,9 @@ where
     /// archive.add_raw(Path::new("cherry.png"), vec![]);
     /// archive.add_raw(Path::new("yucca.jpg"), vec![]);
     ///
-    /// let paths = archive.glob("*.png")
+    /// // Retrieve files with png extension.
+    /// let paths = archive.content
+    ///     .glob("*.png")
     ///     .expect("Failed to compile pattern")
     ///     .map(|(path, _)| path.as_ref())
     ///     .collect::<Vec<_>>();
@@ -46,7 +40,6 @@ where
         let pattern = Pattern::from_str(pattern)?;
 
         let iter = self
-            .content
             .iter()
             .filter(move |(path, _)| pattern.matches_path(path));
 

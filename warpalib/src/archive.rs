@@ -10,7 +10,7 @@ use flate2::{read::ZlibDecoder, write::ZlibEncoder, Compression};
 use log::{debug, info};
 use serde_pickle::{DeOptions, HashableValue, SerOptions, Value};
 
-use crate::{record::Record, version::RpaVersion, Content, RpaError, RpaResult};
+use crate::{record::Record, version::RpaVersion, Content, ContentMap, RpaError, RpaResult};
 
 /// Represents a renpy archive.
 ///
@@ -55,7 +55,7 @@ pub struct RenpyArchive<R: Seek + BufRead> {
     pub version: RpaVersion,
 
     /// The content present in this archive.
-    pub content: HashMap<Rc<Path>, Content>,
+    pub content: ContentMap,
 }
 
 impl RenpyArchive<Cursor<Vec<u8>>> {
@@ -75,7 +75,7 @@ impl Default for RenpyArchive<Cursor<Vec<u8>>> {
             offset: 0,
             version: RpaVersion::V3_0,
             key: Some(0xDEADBEEF),
-            content: HashMap::new(),
+            content: Default::default(),
         }
     }
 }
@@ -104,7 +104,7 @@ impl RenpyArchive<BufReader<File>> {
     }
 }
 
-type MetaData = (u64, Option<u64>, HashMap<Rc<Path>, Content>);
+type MetaData = (u64, Option<u64>, ContentMap);
 
 impl<R> RenpyArchive<R>
 where
@@ -195,7 +195,7 @@ where
         }
         debug!("Parsed index data to struct");
 
-        Ok((offset, key, content))
+        Ok((offset, key, content.into()))
     }
 }
 

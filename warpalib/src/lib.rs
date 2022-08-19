@@ -19,7 +19,7 @@ mod version;
 mod glob;
 
 pub use archive::RenpyArchive;
-pub use content::Content;
+pub use content::{Content, ContentMap};
 pub use error::{RpaError, RpaResult};
 pub use record::Record;
 pub use version::RpaVersion;
