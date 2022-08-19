@@ -10,7 +10,7 @@ use std::{
 };
 
 use clap::{Parser, Subcommand};
-use glob::Pattern;
+use glob::{glob, Pattern};
 use log::{error, info};
 use rayon::prelude::*;
 use simplelog::{ColorChoice, Config, LevelFilter, TermLogger};
@@ -41,6 +41,10 @@ enum Command {
 
         /// Files to be added.
         files: Vec<PathBuf>,
+
+        /// Add files matching this pattern.
+        #[clap(short, long)]
+        pattern: Option<String>,
     },
 
     /// Extract files with full paths
@@ -114,37 +118,52 @@ fn main() {
 
 fn run(args: Cli) -> Result<(), RpaError> {
     match args.command {
-        Command::Add { path, files } => {
+        Command::Add {
+            path,
+            files,
+            pattern,
+        } => {
             fn add_files<R: Seek + BufRead>(
                 path: &Path,
-                mut archive: RenpyArchive<R>,
                 files: Vec<PathBuf>,
+                pattern: Option<String>,
+                mut archive: RenpyArchive<R>,
                 temp_path: &Path,
                 key: Option<u64>,
             ) -> RpaResult<()> {
+                // Override key.
                 if let Some(key) = key {
                     archive.key = Some(key);
                 }
 
+                // Add manual specified files.
                 for file in files {
-                    let file = Rc::from(file);
-                    archive
-                        .content
-                        .insert(Rc::clone(&file), Content::File(file));
+                    archive.add_file(&file);
                 }
 
+                // Add glob pattern specified files.
+                if let Some(pattern) = pattern {
+                    for file in glob(&pattern)? {
+                        let file = file.expect("Failed glob iteration");
+                        archive.add_file(&file);
+                    }
+                }
+
+                // Write and replace archive.
                 replace_archive(archive, path, temp_path)?;
+
                 Ok(())
             }
 
-            temp_scope(&path, |temp| {
+            temp_scope(&path, |temp_path| {
                 if path.exists() && path.is_file() {
                     let archive = RenpyArchive::open(&path)?;
-                    add_files(&path, archive, files, temp, args.key)
+                    add_files(&path, files, pattern, archive, temp_path, args.key)
                 } else if path.exists() {
                     io_error!("Expected an archive or empty path: {}", path.display())
                 } else {
-                    add_files(&path, RenpyArchive::new(), files, temp, args.key)
+                    let archive = RenpyArchive::new();
+                    add_files(&path, files, pattern, archive, temp_path, args.key)
                 }
             })
         }
