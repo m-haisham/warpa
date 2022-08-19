@@ -138,6 +138,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
 
                 // Add manual specified files.
                 for file in files {
+                    info!("Adding {}", file.display());
                     archive.add_file(&file);
                 }
 
@@ -145,6 +146,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
                 if let Some(pattern) = pattern {
                     for file in glob(&pattern)? {
                         let file = file.expect("Failed glob iteration");
+                        info!("Adding {}", file.display());
                         archive.add_file(&file);
                     }
                 }
@@ -185,7 +187,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
                     };
 
                     for (output, content) in iter {
-                        info!("{}", output.display());
+                        info!("Extracting {}", output.display());
 
                         let output = out.join(output);
                         if let Some(parent) = output.parent() {
@@ -224,6 +226,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
             }
 
             for file in files {
+                info!("Removing {}", file.display());
                 if archive.content.remove(file.as_path()).is_none() {
                     return io_error!("File not found in archive: '{}'", file.display());
                 }
@@ -235,7 +238,13 @@ fn run(args: Cli) -> Result<(), RpaError> {
                 let content = mem::take(&mut archive.content);
                 archive.content = content
                     .into_iter()
-                    .filter(move |(path, _)| pattern.matches_path(path) ^ keep)
+                    .filter(move |(path, _)| {
+                        let keep = pattern.matches_path(path) ^ keep;
+                        if !keep {
+                            info!("Removing {}", path.display());
+                        }
+                        keep
+                    })
                     .collect::<HashMap<_, _>>()
                     .into();
             }
