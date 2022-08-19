@@ -81,7 +81,7 @@ enum Command {
 
         /// Keep files matching the pattern.
         #[clap(short, long)]
-        keep_pattern: bool,
+        keep: bool,
     },
 }
 
@@ -216,7 +216,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
             archive: path,
             files,
             pattern,
-            keep_pattern: negate_pattern,
+            keep,
         } => {
             let mut archive = RenpyArchive::open(&path)?;
             if let Some(key) = args.key {
@@ -235,7 +235,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
                 let content = mem::take(&mut archive.content);
                 archive.content = content
                     .into_iter()
-                    .filter(move |(path, _)| pattern.matches_path(path) ^ negate_pattern)
+                    .filter(move |(path, _)| pattern.matches_path(path) ^ keep)
                     .collect::<HashMap<_, _>>()
                     .into();
             }
