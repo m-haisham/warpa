@@ -7,7 +7,7 @@ fn main() -> RpaResult<()> {
     let mut archive = RenpyArchive::new();
 
     // Add readme into archive.
-    archive.add_file(Path::new("README.md"));
+    archive.content.insert_file(Path::new("README.md"));
 
     // Write the current to a buffer.
     let mut buffer = Cursor::new(Vec::new());

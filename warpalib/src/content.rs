@@ -45,6 +45,24 @@ impl IntoIterator for ContentMap {
     }
 }
 
+impl ContentMap {
+    /// Add a file to the archive. The file will be indexed in the
+    /// archive with the same path.
+    ///
+    /// The data is not written into the archive until `flush` is called.
+    pub fn insert_file(&mut self, path: &Path) -> Option<Content> {
+        let path = Rc::from(path);
+        self.0.insert(Rc::clone(&path), Content::File(path))
+    }
+
+    /// Add raw bytes to archive.
+    ///
+    /// The data is not written into the archive until `flush` is called.
+    pub fn insert_raw(&mut self, path: &Path, bytes: Vec<u8>) -> Option<Content> {
+        self.0.insert(Rc::from(path), Content::Raw(bytes))
+    }
+}
+
 /// Represents data stored in archive.
 #[derive(Debug)]
 pub enum Content {

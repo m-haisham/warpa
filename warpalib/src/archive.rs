@@ -31,7 +31,7 @@ use crate::{record::Record, version::RpaVersion, Content, ContentMap, RpaError, 
 /// let mut archive = RenpyArchive::new();
 ///
 /// // Insert new data into archive
-/// archive.add_raw(Path::new("log.txt"), vec![0u8; 1024]);
+/// archive.content.insert_raw(Path::new("log.txt"), vec![0u8; 1024]);
 ///
 /// // or, insert new file
 /// // archive.add_file(Path::new("log.txt"));
@@ -203,22 +203,6 @@ impl<R> RenpyArchive<R>
 where
     R: Seek + BufRead,
 {
-    /// Add a file to the archive. The file will be indexed in the
-    /// archive with the same path.
-    ///
-    /// The data is not written into the archive until `flush` is called.
-    pub fn add_file(&mut self, path: &Path) -> Option<Content> {
-        let path = Rc::from(path);
-        self.content.insert(Rc::clone(&path), Content::File(path))
-    }
-
-    /// Add raw bytes to archive.
-    ///
-    /// The data is not written into the archive until `flush` is called.
-    pub fn add_raw(&mut self, path: &Path, bytes: Vec<u8>) -> Option<Content> {
-        self.content.insert(Rc::from(path), Content::Raw(bytes))
-    }
-
     /// Copy content from a file in the archive to the `writer`.
     ///
     /// # Errors

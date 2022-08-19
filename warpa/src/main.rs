@@ -139,7 +139,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
                 // Add manual specified files.
                 for file in files {
                     info!("Adding {}", file.display());
-                    archive.add_file(&file);
+                    archive.content.insert_file(&file);
                 }
 
                 // Add glob pattern specified files.
@@ -147,7 +147,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
                     for file in glob(&pattern)? {
                         let file = file.expect("Failed glob iteration");
                         info!("Adding {}", file.display());
-                        archive.add_file(&file);
+                        archive.content.insert_file(&file);
                     }
                 }
 
@@ -182,7 +182,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
                     let mut archive = RenpyArchive::open(&path)?;
 
                     let iter: Box<dyn Iterator<Item = (&Rc<Path>, &Content)>> = match &pattern {
-                        Some(pattern) => Box::new(archive.content.glob(&pattern)?),
+                        Some(pattern) => Box::new(archive.content.glob(pattern)?),
                         None => Box::new(archive.content.iter()),
                     };
 

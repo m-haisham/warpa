@@ -19,9 +19,9 @@ impl ContentMap {
     ///
     /// // Create a new archive and add sample files.
     /// let mut archive = RenpyArchive::new();
-    /// archive.add_raw(Path::new("silk.png"), vec![]);
-    /// archive.add_raw(Path::new("cherry.png"), vec![]);
-    /// archive.add_raw(Path::new("yucca.jpg"), vec![]);
+    /// archive.content.insert_raw(Path::new("silk.png"), vec![]);
+    /// archive.content.insert_raw(Path::new("cherry.png"), vec![]);
+    /// archive.content.insert_raw(Path::new("yucca.jpg"), vec![]);
     ///
     /// // Retrieve files with png extension.
     /// let paths = archive.content
