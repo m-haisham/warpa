@@ -1,12 +1,16 @@
 use std::{
+    collections::HashMap,
     fs::{self, File},
     io::{BufRead, Seek},
+    mem,
     path::{Path, PathBuf},
     process::exit,
     rc::Rc,
+    str::FromStr,
 };
 
 use clap::{Parser, Subcommand};
+use glob::Pattern;
 use log::{error, info};
 use rayon::prelude::*;
 use simplelog::{ColorChoice, Config, LevelFilter, TermLogger};
@@ -66,6 +70,14 @@ enum Command {
 
         /// Files to be deleted
         files: Vec<PathBuf>,
+
+        /// Remove files matching this glob pattern.
+        #[clap(short, long)]
+        pattern: Option<String>,
+
+        /// Keep files matching the pattern.
+        #[clap(short, long)]
+        keep_pattern: bool,
     },
 }
 
@@ -184,6 +196,8 @@ fn run(args: Cli) -> Result<(), RpaError> {
         Command::Remove {
             archive: path,
             files,
+            pattern,
+            keep_pattern: negate_pattern,
         } => {
             let mut archive = RenpyArchive::open(&path)?;
             if let Some(key) = args.key {
@@ -194,6 +208,17 @@ fn run(args: Cli) -> Result<(), RpaError> {
                 if archive.content.remove(file.as_path()).is_none() {
                     return io_error!("File not found in archive: '{}'", file.display());
                 }
+            }
+
+            if let Some(pattern_str) = pattern {
+                let pattern = Pattern::from_str(&pattern_str)?;
+
+                let content = mem::take(&mut archive.content);
+                archive.content = content
+                    .into_iter()
+                    .filter(move |(path, _)| pattern.matches_path(path) ^ negate_pattern)
+                    .collect::<HashMap<_, _>>()
+                    .into();
             }
 
             temp_scope(&path, |temp_path| {

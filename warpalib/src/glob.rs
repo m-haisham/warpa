@@ -45,4 +45,19 @@ impl ContentMap {
 
         Ok(iter)
     }
+
+    /// Consumes the content map and returns an iterator with owned contents
+    /// that matches the given glob pattern.
+    pub fn into_glob(
+        self,
+        pattern: &str,
+    ) -> Result<impl Iterator<Item = (Rc<Path>, Content)>, PatternError> {
+        let pattern = Pattern::from_str(pattern)?;
+
+        let iter = self
+            .into_iter()
+            .filter(move |(path, _)| pattern.matches_path(path));
+
+        Ok(iter)
+    }
 }
