@@ -5,7 +5,7 @@ use serde_pickle::Value;
 
 use crate::{RpaError, RpaResult};
 
-/// Index contains information required to read a specific
+/// Record contains information required to read a specific
 /// file from the archive.
 ///
 /// # Examples
@@ -62,7 +62,7 @@ impl Record {
     ///
     /// # Errors
     ///
-    /// This function will return `RpaError::FormatIndex` if the format
+    /// This function will return [`RpaError::FormatRecord`] if the format
     /// of the value could not be recognized.
     pub fn from_value(value: Value, key: Option<u64>) -> RpaResult<Self> {
         debug!("Parsing index from value: {value:?}");
@@ -72,10 +72,10 @@ impl Record {
                 let mut iter = values.into_iter();
                 match iter.next() {
                     Some(Value::List(values)) => values.into_iter(),
-                    _ => return Err(RpaError::FormatIndex),
+                    _ => return Err(RpaError::FormatRecord),
                 }
             }
-            _ => return Err(RpaError::FormatIndex),
+            _ => return Err(RpaError::FormatRecord),
         };
 
         match (iter.next(), iter.next(), iter.next()) {
@@ -85,7 +85,7 @@ impl Record {
             (Some(Value::I64(start)), Some(Value::I64(length)), Some(Value::Bytes(prefix))) => {
                 Ok(Self::new(start as u64, length as u64, Some(prefix), key))
             }
-            _ => Err(RpaError::FormatIndex),
+            _ => Err(RpaError::FormatRecord),
         }
     }
 

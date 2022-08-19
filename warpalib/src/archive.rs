@@ -184,7 +184,7 @@ where
         // Deserialize indexes using pickle.
         let options = DeOptions::default();
         let raw_indexes: HashMap<String, Value> = serde_pickle::from_slice(&contents[..], options)
-            .map_err(|_| RpaError::DeserializeIndex)?;
+            .map_err(|_| RpaError::DeserializeRecord)?;
         debug!("Deserialized index data using pickle");
 
         // Map indexes to an easier format.
@@ -298,7 +298,7 @@ where
             match serde_pickle::value_to_writer(&mut buffer, &values, options) {
                 Ok(_) => Ok(()),
                 Err(serde_pickle::Error::Io(e)) => Err(RpaError::Io(e)),
-                Err(_) => Err(RpaError::SerializeIndex),
+                Err(_) => Err(RpaError::SerializeRecord),
             }?;
             debug!(
                 "Encoded indexes using pickle format 2: {} bytes",

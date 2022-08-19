@@ -41,17 +41,13 @@ pub enum RpaError {
 
     /// Failed to serialize archive index.
     #[error("failed to serialize archive index")]
-    SerializeIndex,
+    SerializeRecord,
 
     /// Failed to deserialize archive index.
     #[error("failed to deserialize archive index")]
-    DeserializeIndex,
+    DeserializeRecord,
 
     /// Failed to format archive index.
     #[error("failed to format archive index")]
-    FormatIndex,
-
-    /// Failed to encode prefix to latin1.
-    #[error("failed to encode prefix to latin1")]
-    EncodePrefix(String),
+    FormatRecord,
 }

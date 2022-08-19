@@ -61,7 +61,7 @@ pub enum Content {
 impl Content {
     /// Copy data from the content into the `writer`.
     ///
-    /// - `Index` - Data is copied from the archive (reader).
+    /// - `Record` - Data is copied from the archive (reader).
     /// - `File` - Data is copied from the file.
     /// - `Raw` - Raw in-memory buffer is copied.
     ///
