@@ -95,7 +95,29 @@ enum Command {
         /// Update archive files matching this glob pattern.
         #[clap(short, long)]
         pattern: Option<String>,
+
+        /// Find files relative to [archive] or [current] working directory.
+        #[clap(short, long, default_value = "archive")]
+        relative: RelativeTo,
     },
+}
+
+#[derive(Debug)]
+enum RelativeTo {
+    Archive,
+    Current,
+}
+
+impl FromStr for RelativeTo {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "archive" => Ok(RelativeTo::Archive),
+            "current" => Ok(RelativeTo::Current),
+            s @ _ => Err(format!("unrecognised relative format '{s}'.")),
+        }
+    }
 }
 
 macro_rules! io_error {
@@ -270,11 +292,15 @@ fn run(args: Cli) -> Result<(), RpaError> {
             archive: archive_path,
             files,
             pattern,
+            relative,
         } => {
             let mut archive = RenpyArchive::open(&archive_path)?;
-            let archive_dir = match archive_path.parent() {
-                Some(p) => p,
-                None => return io_error!("Archive not located in a directory."),
+            let dir = match relative {
+                RelativeTo::Archive => match archive_path.parent() {
+                    Some(p) => p,
+                    None => return io_error!("Archive not located in a directory."),
+                },
+                RelativeTo::Current => Path::new(""),
             };
 
             // Update all if no specifics are defined.
@@ -283,7 +309,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
                 archive.content = archive
                     .content
                     .into_iter()
-                    .map(|(p, _)| (Rc::clone(&p), Content::File(Rc::from(archive_dir.join(p)))))
+                    .map(|(p, _)| (Rc::clone(&p), Content::File(Rc::from(dir.join(p)))))
                     .collect::<HashMap<_, _>>()
                     .into();
             } else {
@@ -291,7 +317,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
                 for file in files {
                     let path = Rc::from(file);
                     match archive.content.get_mut(&path) {
-                        Some(c) => *c = Content::File(Rc::from(archive_dir.join(path))),
+                        Some(c) => *c = Content::File(Rc::from(dir.join(path))),
                         None => {
                             return io_error!("File not found in archive: '{}'", path.display())
                         }
@@ -309,7 +335,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
 
                     for path in matched_paths {
                         let content = archive.content.get_mut(&path).unwrap();
-                        *content = Content::File(Rc::from(archive_dir.join(path)));
+                        *content = Content::File(Rc::from(dir.join(path)));
                     }
                 }
             }
