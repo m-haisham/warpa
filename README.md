@@ -9,6 +9,12 @@ Warpa is a command-line tool used to create and extract from renpy archives (rpa
 
 The program fully supports v3.0 and v2.0 and reading v3.2.
 
+## Features
+
+- **Fast threaded extraction.** Extract files from multiple archives at the same time using threads.
+- **Built-in glob pattern support.** Built-in support for glob pattern matching allows adding and removing files, and extracting and updating archives using patterns.
+- **Minimal memory footprint.** Warpa does not read archive into memory. It copies segments from the archive into specified location (extracting file or temporary archive depending on command).
+
 ## Install
 
 ```bash
