@@ -75,13 +75,26 @@ enum Command {
         /// Files to be deleted
         files: Vec<PathBuf>,
 
-        /// Remove files matching this glob pattern.
+        /// Remove archive files matching this glob pattern.
         #[clap(short, long)]
         pattern: Option<String>,
 
         /// Keep files matching the pattern.
         #[clap(short, long)]
         keep: bool,
+    },
+
+    /// Update existing archive by reading from filesystem.
+    Update {
+        /// Path to archive.
+        archive: PathBuf,
+
+        /// Files in archive to be updated.
+        files: Vec<PathBuf>,
+
+        /// Update archive files matching this glob pattern.
+        #[clap(short, long)]
+        pattern: Option<String>,
     },
 }
 
@@ -215,12 +228,12 @@ fn run(args: Cli) -> Result<(), RpaError> {
             Ok(())
         }
         Command::Remove {
-            archive: path,
+            archive: archive_path,
             files,
             pattern,
             keep,
         } => {
-            let mut archive = RenpyArchive::open(&path)?;
+            let mut archive = RenpyArchive::open(&archive_path)?;
             if let Some(key) = args.key {
                 archive.key = Some(key);
             }
@@ -249,8 +262,60 @@ fn run(args: Cli) -> Result<(), RpaError> {
                     .into();
             }
 
-            temp_scope(&path, |temp_path| {
-                replace_archive(archive, &path, temp_path)
+            temp_scope(&archive_path, |temp_path| {
+                replace_archive(archive, &archive_path, temp_path)
+            })
+        }
+        Command::Update {
+            archive: archive_path,
+            files,
+            pattern,
+        } => {
+            let mut archive = RenpyArchive::open(&archive_path)?;
+            let archive_dir = match archive_path.parent() {
+                Some(p) => p,
+                None => return io_error!("Archive not located in a directory."),
+            };
+
+            // Update all if no specifics are defined.
+            if files.is_empty() && pattern.is_none() {
+                info!("Updating all files in archive, no specifics defined.");
+                archive.content = archive
+                    .content
+                    .into_iter()
+                    .map(|(p, _)| (Rc::clone(&p), Content::File(Rc::from(archive_dir.join(p)))))
+                    .collect::<HashMap<_, _>>()
+                    .into();
+            } else {
+                info!("Updating files defined by path in archive.");
+                for file in files {
+                    let path = Rc::from(file);
+                    match archive.content.get_mut(&path) {
+                        Some(c) => *c = Content::File(Rc::from(archive_dir.join(path))),
+                        None => {
+                            return io_error!("File not found in archive: '{}'", path.display())
+                        }
+                    }
+                }
+
+                info!("Updating files defined by pattern in archive.");
+                if let Some(pattern) = pattern {
+                    let matched_paths = archive
+                        .content
+                        .glob(&pattern)?
+                        .filter(|(_, c)| matches!(c, Content::Record(_)))
+                        .map(|(p, _)| Rc::clone(p))
+                        .collect::<Vec<_>>();
+
+                    for path in matched_paths {
+                        let content = archive.content.get_mut(&path).unwrap();
+                        *content = Content::File(Rc::from(archive_dir.join(path)));
+                    }
+                }
+            }
+
+            temp_scope(&archive_path, |temp_path| {
+                replace_archive(archive, &archive_path, temp_path)
             })
         }
     }
