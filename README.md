@@ -17,8 +17,6 @@ cargo install --git https://github.com/mensch272/warpa
 
 ## Usage
 
-### CLI
-
 ```text
 USAGE:
     warpa [OPTIONS] <SUBCOMMAND>
@@ -35,6 +33,7 @@ SUBCOMMANDS:
     help       Print this message or the help of the given subcommand(s)
     list       List contents of archive
     remove     Delete files from archive
+    update     Update existing archive by reading from filesystem
 ```
 
 [Examples](warpalib/examples) in warpalib.
