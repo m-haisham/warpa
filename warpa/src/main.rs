@@ -10,7 +10,7 @@ use std::{
 
 use clap::{Parser, Subcommand};
 use glob::{glob, Pattern};
-use log::{error, info};
+use log::{debug, error, info};
 use rayon::prelude::*;
 use simplelog::{ColorChoice, Config, LevelFilter, TermLogger};
 use std::io;
@@ -173,7 +173,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
                 // Add manual specified files.
                 for file in files {
                     info!("Adding {}", file.display());
-                    archive.content.insert_file(&file);
+                    archive.content.insert_file(file);
                 }
 
                 // Add glob pattern specified files.
@@ -181,7 +181,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
                     for file in glob(&pattern)? {
                         let file = file.expect("Failed glob iteration");
                         info!("Adding {}", file.display());
-                        archive.content.insert_file(&file);
+                        archive.content.insert_file(file);
                     }
                 }
 
@@ -315,28 +315,36 @@ fn run(args: Cli) -> Result<(), RpaError> {
                     .collect::<HashMap<_, _>>()
                     .into();
             } else {
-                info!("Updating files defined by path in archive.");
-                for file in files {
-                    match archive.content.get_mut(&file) {
-                        Some(c) => *c = Content::File(dir.join(file)),
-                        None => {
-                            return io_error!("File not found in archive: '{}'", file.display())
-                        }
-                    }
-                }
-
                 info!("Updating files defined by pattern in archive.");
                 if let Some(pattern) = pattern {
-                    let matched_paths = archive
+                    let pattern = Pattern::from_str(&pattern)?;
+                    archive.content = archive
                         .content
-                        .glob(&pattern)?
-                        .filter(|(_, c)| matches!(c, Content::Record(_)))
-                        .map(|(p, _)| p.clone())
-                        .collect::<Vec<_>>();
+                        .into_iter()
+                        .map(|(path, content)| {
+                            if pattern.matches_path(&path) {
+                                debug!("Updating '{}' by pattern.", path.display());
+                                let file = Content::File(dir.join(&path));
+                                (path, file)
+                            } else {
+                                (path, content)
+                            }
+                        })
+                        .collect::<HashMap<_, _>>()
+                        .into();
+                }
 
-                    for path in matched_paths {
-                        let content = archive.content.get_mut(&path).unwrap();
-                        *content = Content::File(dir.join(path));
+                info!("Updating files defined by path in archive.");
+                for path in files {
+                    match archive.content.get_mut(&path) {
+                        Some(content) if matches!(content, Content::Record(_)) => {
+                            debug!("Updating '{}' by path.", path.display());
+                            *content = Content::File(dir.join(path))
+                        }
+                        Some(_) => (),
+                        None => {
+                            return io_error!("File not found in archive: '{}'", path.display())
+                        }
                     }
                 }
             }
