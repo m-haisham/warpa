@@ -309,8 +309,8 @@ fn run(args: Cli) -> Result<(), RpaError> {
                     .content
                     .into_iter()
                     .map(|(p, _)| {
-                        let file = dir.join(&p);
-                        (p, Content::File(file))
+                        let file = Content::File(dir.join(&p));
+                        (p, file)
                     })
                     .collect::<HashMap<_, _>>()
                     .into();
