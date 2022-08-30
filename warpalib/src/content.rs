@@ -3,8 +3,7 @@ use std::{
     fs::File,
     io::{self, Cursor, Read, Seek, Write},
     ops::{Deref, DerefMut},
-    path::Path,
-    rc::Rc,
+    path::PathBuf,
 };
 
 use log::debug;
@@ -13,16 +12,16 @@ use crate::Record;
 
 /// Represents contents of an archive mapped to their path
 #[derive(Default, Debug)]
-pub struct ContentMap(HashMap<Rc<Path>, Content>);
+pub struct ContentMap(HashMap<PathBuf, Content>);
 
-impl From<HashMap<Rc<Path>, Content>> for ContentMap {
-    fn from(value: HashMap<Rc<Path>, Content>) -> Self {
+impl From<HashMap<PathBuf, Content>> for ContentMap {
+    fn from(value: HashMap<PathBuf, Content>) -> Self {
         ContentMap(value)
     }
 }
 
 impl Deref for ContentMap {
-    type Target = HashMap<Rc<Path>, Content>;
+    type Target = HashMap<PathBuf, Content>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -36,9 +35,9 @@ impl DerefMut for ContentMap {
 }
 
 impl IntoIterator for ContentMap {
-    type Item = (Rc<Path>, Content);
+    type Item = (PathBuf, Content);
 
-    type IntoIter = hash_map::IntoIter<Rc<Path>, Content>;
+    type IntoIter = hash_map::IntoIter<PathBuf, Content>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -50,16 +49,27 @@ impl ContentMap {
     /// archive with the same path.
     ///
     /// The data is not written into the archive until `flush` is called.
-    pub fn insert_file(&mut self, path: &Path) -> Option<Content> {
-        let path = Rc::from(path);
-        self.0.insert(Rc::clone(&path), Content::File(path))
+    pub fn insert_file<P>(&mut self, path: P) -> Option<Content>
+    where
+        P: Into<PathBuf>,
+    {
+        fn inner(map: &mut ContentMap, path: PathBuf) -> Option<Content> {
+            map.0.insert(path.clone(), Content::File(path))
+        }
+        inner(self, path.into())
     }
 
     /// Add raw bytes to archive.
     ///
     /// The data is not written into the archive until `flush` is called.
-    pub fn insert_raw(&mut self, path: &Path, bytes: Vec<u8>) -> Option<Content> {
-        self.0.insert(Rc::from(path), Content::Raw(bytes))
+    pub fn insert_raw<P>(&mut self, path: P, bytes: Vec<u8>) -> Option<Content>
+    where
+        P: Into<PathBuf>,
+    {
+        fn inner(map: &mut ContentMap, path: PathBuf, bytes: Vec<u8>) -> Option<Content> {
+            map.0.insert(path, Content::Raw(bytes))
+        }
+        inner(self, path.into(), bytes)
     }
 }
 
@@ -70,7 +80,7 @@ pub enum Content {
     Record(Record),
 
     /// A file in the storage.
-    File(Rc<Path>),
+    File(PathBuf),
 
     /// Bytes in memory.
     Raw(Vec<u8>),

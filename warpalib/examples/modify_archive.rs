@@ -11,7 +11,7 @@ fn main() -> RpaResult<()> {
     let mut archive = RenpyArchive::open(path)?;
 
     // Make a change to the archive.
-    archive.content.insert_file(Path::new("README.md"));
+    archive.content.insert_file("README.md");
 
     // Saving and replacing the archive is a bit complicated since
     // we cannot read from and write to the same file at the same time

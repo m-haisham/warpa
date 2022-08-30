@@ -2,8 +2,7 @@ use std::{
     collections::{BTreeMap, HashMap},
     fs::File,
     io::{self, BufRead, BufReader, Cursor, Read, Seek, SeekFrom, Write},
-    path::Path,
-    rc::Rc,
+    path::{Path, PathBuf},
 };
 
 use flate2::{read::ZlibDecoder, write::ZlibEncoder, Compression};
@@ -24,14 +23,13 @@ use crate::{record::Record, version::RpaVersion, Content, ContentMap, RpaError, 
 /// use std::{
 ///     io::{BufWriter, Cursor},
 ///     fs::File,
-///     path::Path,
 /// };
 ///
 /// // Open in memory archive
 /// let mut archive = RenpyArchive::new();
 ///
 /// // Insert new data into archive
-/// archive.content.insert_raw(Path::new("log.txt"), vec![0u8; 1024]);
+/// archive.content.insert_raw("log.txt", vec![0u8; 1024]);
 ///
 /// // or, insert new file
 /// // archive.add_file(Path::new("log.txt"));
@@ -191,7 +189,7 @@ where
         let mut content = HashMap::new();
         for (path, value) in raw_indexes.into_iter() {
             let value = Record::from_value(value, key)?;
-            content.insert(Rc::from(Path::new(&path)), Content::Record(value));
+            content.insert(PathBuf::from(path), Content::Record(value));
         }
         debug!("Parsed index data to struct");
 

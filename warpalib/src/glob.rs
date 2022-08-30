@@ -1,5 +1,5 @@
 use glob::{Pattern, PatternError};
-use std::{path::Path, rc::Rc, str::FromStr};
+use std::{path::PathBuf, str::FromStr};
 
 use crate::{Content, ContentMap};
 
@@ -19,9 +19,9 @@ impl ContentMap {
     ///
     /// // Create a new archive and add sample files.
     /// let mut archive = RenpyArchive::new();
-    /// archive.content.insert_raw(Path::new("silk.png"), vec![]);
-    /// archive.content.insert_raw(Path::new("cherry.png"), vec![]);
-    /// archive.content.insert_raw(Path::new("yucca.jpg"), vec![]);
+    /// archive.content.insert_raw("silk.png", vec![]);
+    /// archive.content.insert_raw("cherry.png", vec![]);
+    /// archive.content.insert_raw("yucca.jpg", vec![]);
     ///
     /// // Retrieve files with png extension.
     /// let paths = archive.content
@@ -36,7 +36,7 @@ impl ContentMap {
     pub fn glob(
         &self,
         pattern: &str,
-    ) -> Result<impl Iterator<Item = (&Rc<Path>, &Content)>, PatternError> {
+    ) -> Result<impl Iterator<Item = (&PathBuf, &Content)>, PatternError> {
         let pattern = Pattern::from_str(pattern)?;
 
         let iter = self
@@ -51,7 +51,7 @@ impl ContentMap {
     pub fn into_glob(
         self,
         pattern: &str,
-    ) -> Result<impl Iterator<Item = (Rc<Path>, Content)>, PatternError> {
+    ) -> Result<impl Iterator<Item = (PathBuf, Content)>, PatternError> {
         let pattern = Pattern::from_str(pattern)?;
 
         let iter = self

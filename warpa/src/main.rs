@@ -5,7 +5,6 @@ use std::{
     mem,
     path::{Path, PathBuf},
     process::exit,
-    rc::Rc,
     str::FromStr,
 };
 
@@ -115,7 +114,7 @@ impl FromStr for RelativeTo {
         match s {
             "archive" => Ok(RelativeTo::Archive),
             "current" => Ok(RelativeTo::Current),
-            s @ _ => Err(format!("unrecognised relative format '{s}'.")),
+            _ => Err(format!("unrecognised relative format '{s}'.")),
         }
     }
 }
@@ -216,7 +215,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
                 .map(|path| {
                     let mut archive = RenpyArchive::open(&path)?;
 
-                    let iter: Box<dyn Iterator<Item = (&Rc<Path>, &Content)>> = match &pattern {
+                    let iter: Box<dyn Iterator<Item = (&PathBuf, &Content)>> = match &pattern {
                         Some(pattern) => Box::new(archive.content.glob(pattern)?),
                         None => Box::new(archive.content.iter()),
                     };
@@ -309,17 +308,19 @@ fn run(args: Cli) -> Result<(), RpaError> {
                 archive.content = archive
                     .content
                     .into_iter()
-                    .map(|(p, _)| (Rc::clone(&p), Content::File(Rc::from(dir.join(p)))))
+                    .map(|(p, _)| {
+                        let file = dir.join(&p);
+                        (p, Content::File(file))
+                    })
                     .collect::<HashMap<_, _>>()
                     .into();
             } else {
                 info!("Updating files defined by path in archive.");
                 for file in files {
-                    let path = Rc::from(file);
-                    match archive.content.get_mut(&path) {
-                        Some(c) => *c = Content::File(Rc::from(dir.join(path))),
+                    match archive.content.get_mut(&file) {
+                        Some(c) => *c = Content::File(dir.join(file)),
                         None => {
-                            return io_error!("File not found in archive: '{}'", path.display())
+                            return io_error!("File not found in archive: '{}'", file.display())
                         }
                     }
                 }
@@ -330,12 +331,12 @@ fn run(args: Cli) -> Result<(), RpaError> {
                         .content
                         .glob(&pattern)?
                         .filter(|(_, c)| matches!(c, Content::Record(_)))
-                        .map(|(p, _)| Rc::clone(p))
+                        .map(|(p, _)| p.clone())
                         .collect::<Vec<_>>();
 
                     for path in matched_paths {
                         let content = archive.content.get_mut(&path).unwrap();
-                        *content = Content::File(Rc::from(dir.join(path)));
+                        *content = Content::File(dir.join(path));
                     }
                 }
             }
