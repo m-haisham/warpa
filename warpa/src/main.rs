@@ -55,6 +55,10 @@ enum Command {
         #[clap(short, long)]
         out: Option<PathBuf>,
 
+        /// Files to be extracted.
+        #[clap(short, long)]
+        files: Vec<PathBuf>,
+
         /// Extract files matching the given glob pattern
         #[clap(short, long)]
         pattern: Option<String>,
@@ -206,6 +210,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
         Command::Extract {
             archives: paths,
             out,
+            files,
             pattern,
         } => {
             let out = out.unwrap_or_default();
@@ -215,12 +220,32 @@ fn run(args: Cli) -> Result<(), RpaError> {
                 .map(|path| {
                     let mut archive = RenpyArchive::open(&path)?;
 
-                    let iter: Box<dyn Iterator<Item = (&PathBuf, &Content)>> = match &pattern {
-                        Some(pattern) => Box::new(archive.content.glob(pattern)?),
-                        None => Box::new(archive.content.iter()),
-                    };
+                    let pattern = pattern
+                        .as_ref()
+                        .map(|s| Pattern::from_str(s))
+                        .map_or(Ok(None), |r| r.map(Some))?;
 
-                    for (output, content) in iter {
+                    let content_iter: Box<dyn Iterator<Item = (PathBuf, Content)>> =
+                        match (&files, &pattern) {
+                            (f, Some(pattern)) if f.is_empty() => Box::new(
+                                archive
+                                    .content
+                                    .into_iter()
+                                    .filter(|(path, _)| pattern.matches_path(path)),
+                            ),
+                            (f, Some(pattern)) => {
+                                Box::new(archive.content.into_iter().filter(|(path, _)| {
+                                    pattern.matches_path(path) || f.contains(path)
+                                }))
+                            }
+                            (f, None) if f.is_empty() => Box::new(archive.content.into_iter()),
+                            (f, None) => Box::new(
+                                f.into_iter()
+                                    .filter_map(|path| archive.content.remove_entry(path)),
+                            ),
+                        };
+
+                    for (output, content) in content_iter {
                         info!("Extracting {}", output.display());
 
                         let output = out.join(output);
