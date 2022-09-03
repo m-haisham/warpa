@@ -59,6 +59,23 @@ impl ContentMap {
         inner(self, path.into())
     }
 
+    /// Add a file to the archive. The file will be indexed by `archive_path` in the archive
+    /// with `file_path` used to track in filesystem.
+    ///
+    /// Use [`insert_file`] when adding files that have the same relative path in archive and
+    /// in filesystem.
+    ///
+    /// The data is not written into the archive until `flush` is called.
+    pub fn insert_file_mapped<P>(&mut self, archive_path: P, file_path: P) -> Option<Content>
+    where
+        P: Into<PathBuf>,
+    {
+        fn inner(map: &mut ContentMap, key: PathBuf, value: PathBuf) -> Option<Content> {
+            map.0.insert(key, Content::File(value))
+        }
+        inner(self, archive_path.into(), file_path.into())
+    }
+
     /// Add raw bytes to archive.
     ///
     /// The data is not written into the archive until `flush` is called.
