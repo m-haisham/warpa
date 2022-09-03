@@ -11,7 +11,7 @@ The program fully supports v3.0 and v2.0 and reading v3.2.
 
 ## Features
 
-- **Fast threaded extraction.** Extract files from multiple archives at the same time using threads.
+- **Fast threaded extraction.** Extract files from multiple archives at the same time using threads. Use `-m` to enable multi-threaded extraction for a single archive by lazy reading file into memory as needed.
 - **Built-in glob pattern support.** Built-in support for glob pattern matching allows adding and removing files, and extracting and updating archives using patterns.
 - **Minimal memory footprint.** Warpa does not read archive into memory. It copies segments from the archive into specified location (extracting file or temporary archive depending on command).
 
