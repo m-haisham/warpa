@@ -51,6 +51,10 @@ enum Command {
         /// Paths to archives to extract.
         archives: Vec<PathBuf>,
 
+        /// Find archives using the glob pattern.
+        #[clap(short, long)]
+        archive_pattern: Option<String>,
+
         /// Root output directory. The default is current directory.
         #[clap(short, long)]
         out: Option<PathBuf>,
@@ -208,14 +212,23 @@ fn run(args: Cli) -> Result<(), RpaError> {
             })
         }
         Command::Extract {
-            archives: paths,
+            mut archives,
+            archive_pattern: archives_pattern,
             out,
             files,
             pattern,
         } => {
             let out = out.unwrap_or_default();
 
-            paths
+            if let Some(pattern) = archives_pattern {
+                info!("Adding archives from glob pattern '{}'", pattern);
+                for file in glob(&pattern)? {
+                    let file = file.expect("Failed glob iteration");
+                    archives.push(file);
+                }
+            }
+
+            archives
                 .into_par_iter()
                 .map(|path| {
                     let mut archive = RenpyArchive::open(&path)?;
