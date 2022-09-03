@@ -9,6 +9,7 @@ edition = "2021"
 clap = { version = "3.2.16", features = ["derive"] }
 glob = "0.3.0"
 log = "0.4.17"
+memmap2 = "0.5.7"
 rayon = "1.5.3"
 simplelog = "0.12.0"
 

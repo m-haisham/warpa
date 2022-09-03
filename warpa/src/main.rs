@@ -1,3 +1,5 @@
+mod extract;
+
 use std::{
     collections::HashMap,
     fs::{self, File},
@@ -9,6 +11,7 @@ use std::{
 };
 
 use clap::{Parser, Subcommand};
+use extract::{extract_archive, extract_archive_threaded, filter_content, MemArchive};
 use glob::{glob, Pattern};
 use log::{debug, error, info};
 use rayon::prelude::*;
@@ -66,6 +69,10 @@ enum Command {
         /// Extract files matching the given glob pattern
         #[clap(short, long)]
         pattern: Option<String>,
+
+        /// Load archive into memory and read using multiple threads. This is experimental.
+        #[clap(short, long)]
+        memory: bool,
     },
 
     /// List contents of archive
@@ -217,6 +224,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
             out,
             files,
             pattern,
+            memory,
         } => {
             if let Some(pattern) = archives_pattern {
                 info!("Adding archives from glob pattern '{}'", pattern);
@@ -229,8 +237,6 @@ fn run(args: Cli) -> Result<(), RpaError> {
             archives
                 .into_par_iter()
                 .map(|path| {
-                    let mut archive = RenpyArchive::open(&path)?;
-
                     let out_dir = get_out_or_parent(out.as_ref(), &path)?;
 
                     let pattern = pattern
@@ -238,41 +244,19 @@ fn run(args: Cli) -> Result<(), RpaError> {
                         .map(|s| Pattern::from_str(s))
                         .map_or(Ok(None), |r| r.map(Some))?;
 
-                    let content_iter: Box<dyn Iterator<Item = (PathBuf, Content)>> =
-                        match (&files, &pattern) {
-                            (f, Some(pattern)) if f.is_empty() => Box::new(
-                                archive
-                                    .content
-                                    .into_iter()
-                                    .filter(|(path, _)| pattern.matches_path(path)),
-                            ),
-                            (f, Some(pattern)) => {
-                                Box::new(archive.content.into_iter().filter(|(path, _)| {
-                                    pattern.matches_path(path) || f.contains(path)
-                                }))
-                            }
-                            (f, None) if f.is_empty() => Box::new(archive.content.into_iter()),
-                            (f, None) => Box::new(
-                                f.into_iter()
-                                    .filter_map(|path| archive.content.remove_entry(path)),
-                            ),
-                        };
+                    if memory {
+                        let mmap = MemArchive::open(&path)?;
+                        let content =
+                            filter_content(mmap.archive.content, &files, pattern.as_ref())
+                                .collect();
 
-                    for (output, content) in content_iter {
-                        info!("Extracting {}", output.display());
-
-                        let output = out_dir.join(output);
-                        if let Some(parent) = output.parent() {
-                            if !parent.exists() {
-                                fs::create_dir_all(parent)?;
-                            }
-                        }
-
-                        let mut file = File::create(output)?;
-                        content.copy_to(&mut archive.reader, &mut file)?;
+                        extract_archive_threaded(mmap.archive.reader.into_inner(), content, out_dir)
+                    } else {
+                        let mut archive = RenpyArchive::open(&path)?;
+                        let content_iter =
+                            filter_content(archive.content, &files, pattern.as_ref());
+                        extract_archive(&mut archive.reader, content_iter, out_dir)
                     }
-
-                    Ok(())
                 })
                 .collect::<RpaResult<Vec<()>>>()
                 .map(|_| ())
