@@ -38,6 +38,7 @@ impl Default for WriteVersion {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<RpaVersion> for &WriteVersion {
     fn into(self) -> RpaVersion {
         match self {
@@ -47,28 +48,10 @@ impl Into<RpaVersion> for &WriteVersion {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<RpaVersion> for WriteVersion {
     #[inline]
     fn into(self) -> RpaVersion {
         (&self).into()
-    }
-}
-
-/// Defines where an operation must be relative to.
-#[derive(Debug)]
-pub enum RelativeTo {
-    Archive,
-    Current,
-}
-
-impl FromStr for RelativeTo {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "archive" => Ok(RelativeTo::Archive),
-            "current" => Ok(RelativeTo::Current),
-            _ => Err(format!("unrecognised relative format '{s}'.")),
-        }
     }
 }

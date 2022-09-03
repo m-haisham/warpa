@@ -18,7 +18,7 @@ use log::{debug, error, info};
 use rayon::prelude::*;
 use simplelog::{ColorChoice, Config, LevelFilter, TermLogger};
 use std::io;
-use types::{RelativeTo, WriteVersion};
+use types::WriteVersion;
 use warpalib::{Content, RenpyArchive, RpaError, RpaResult};
 
 #[derive(Parser, Debug)]
@@ -120,15 +120,21 @@ enum Command {
         #[clap(short, long)]
         pattern: Option<String>,
 
-        /// Find files relative to [archive] or [current] working directory.
-        #[clap(short, long, default_value = "archive")]
-        relative: RelativeTo,
+        /// Find files relative to directory. The default is archive directory.
+        #[clap(short, long)]
+        relative: Option<PathBuf>,
     },
 }
 
 macro_rules! io_error {
     ($($arg:tt)*) => {
         Err(RpaError::Io(io::Error::new(io::ErrorKind::Other, format!($($arg)+))))
+    };
+}
+
+macro_rules! not_found {
+    ($($arg:tt)*) => {
+        Err(RpaError::Io(io::Error::new(io::ErrorKind::NotFound, format!($($arg)+))))
     };
 }
 
@@ -341,16 +347,31 @@ fn run(args: Cli) -> Result<(), RpaError> {
             pattern,
             relative,
         } => {
+            // Resolve the target directory and make sure its valid before reading archive.
+            let dir = match relative.as_ref() {
+                None => match archive_path.parent() {
+                    Some(p) => p,
+                    None => return not_found!("unable to access archive directory."),
+                },
+                Some(p) => {
+                    if !p.exists() {
+                        return not_found!(
+                            "relative directory target not found. '{}' does not exist.",
+                            p.display(),
+                        );
+                    } else if !p.is_dir() {
+                        return not_found!(
+                            "relative directory target not found. '{}' not a directory.",
+                            p.display(),
+                        );
+                    } else {
+                        p
+                    }
+                }
+            };
+
             let mut archive = RenpyArchive::open(&archive_path)?;
             config.update_archive(&mut archive);
-
-            let dir = match relative {
-                RelativeTo::Archive => match archive_path.parent() {
-                    Some(p) => p,
-                    None => return io_error!("Archive not located in a directory."),
-                },
-                RelativeTo::Current => Path::new(""),
-            };
 
             // Update all if no specifics are defined.
             if files.is_empty() && pattern.is_none() {
