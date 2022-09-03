@@ -6,7 +6,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! warpalib = "0.2.0"
+//! warpalib = "0.3.0"
 //! ```
 
 mod archive;
