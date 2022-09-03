@@ -29,7 +29,7 @@ fn main() -> RpaResult<()> {
         archive.flush(&mut temp_file)?;
 
         // Move and replace the archive with temp.
-        fs::rename(temp_path, path).map_err(|e| RpaError::Io(e))
+        fs::rename(temp_path, path).map_err(RpaError::Io)
     };
 
     // Delete temp file if it still exists for cleanup.

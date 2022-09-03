@@ -46,7 +46,7 @@ pub fn filter_content<'a>(
                 .filter(|(path, _)| pattern.matches_path(path) || f.contains(path)),
         ),
         (f, None) if f.is_empty() => Box::new(content.into_iter()),
-        (f, None) => Box::new(content.into_iter().filter(|(path, _)| f.contains(&path))),
+        (f, None) => Box::new(content.into_iter().filter(|(path, _)| f.contains(path))),
     }
 }
 
