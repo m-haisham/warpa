@@ -21,6 +21,9 @@ impl MemArchive {
     pub fn open(path: &Path) -> RpaResult<MemArchive> {
         let file = File::open(path)?;
         let mmap = unsafe { Mmap::map(&file)? };
+        #[cfg(unix)]
+        mmap.advise(Advice::WillNeed)?;
+
         let archive = RenpyArchive::read(Cursor::new(mmap))?;
 
         Ok(MemArchive { file, archive })
