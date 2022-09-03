@@ -28,10 +28,23 @@ USAGE:
     warpa [OPTIONS] <SUBCOMMAND>
 
 OPTIONS:
-    -h, --help         Print help information
-    -k, --key <KEY>    The encryption key used for creating v3 archives (default=0xDEADBEEF)
-    -v, --verbose      Provide additional information (default only shows errors)
-    -V, --version      Print version information
+    -h, --help
+            Print help information
+
+    -k, --key <KEY>
+            The encryption key used for creating v3 archives (default=0xDEADBEEF)
+
+    -o, --override-version
+            Override with default write version (3) if archive version does not support write
+
+    -v, --verbose
+            Provide additional information (default only shows errors)
+
+    -V, --version
+            Print version information
+
+    -w, --write-version <WRITE_VERSION>
+            The write version of archives
 
 SUBCOMMANDS:
     add        Add files to existing or new archive
