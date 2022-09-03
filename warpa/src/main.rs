@@ -1,4 +1,5 @@
 mod extract;
+mod types;
 
 use std::{
     collections::HashMap,
@@ -17,6 +18,7 @@ use log::{debug, error, info};
 use rayon::prelude::*;
 use simplelog::{ColorChoice, Config, LevelFilter, TermLogger};
 use std::io;
+use types::{RelativeTo, WriteVersion};
 use warpalib::{Content, RenpyArchive, RpaError, RpaResult};
 
 #[derive(Parser, Debug)]
@@ -29,6 +31,14 @@ struct Cli {
     /// The encryption key used for creating v3 archives (default=0xDEADBEEF).
     #[clap(short, long)]
     key: Option<u64>,
+
+    /// The write version of archives.
+    #[clap(short, long)]
+    write_version: Option<WriteVersion>,
+
+    /// Override with default write version (3) if archive version does not support write.
+    #[clap(short, long)]
+    override_version: bool,
 
     #[clap(subcommand)]
     command: Command,
@@ -116,24 +126,6 @@ enum Command {
     },
 }
 
-#[derive(Debug)]
-enum RelativeTo {
-    Archive,
-    Current,
-}
-
-impl FromStr for RelativeTo {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "archive" => Ok(RelativeTo::Archive),
-            "current" => Ok(RelativeTo::Current),
-            _ => Err(format!("unrecognised relative format '{s}'.")),
-        }
-    }
-}
-
 macro_rules! io_error {
     ($($arg:tt)*) => {
         Err(RpaError::Io(io::Error::new(io::ErrorKind::Other, format!($($arg)+))))
@@ -166,6 +158,20 @@ fn main() {
 }
 
 fn run(args: Cli) -> Result<(), RpaError> {
+    macro_rules! update_config {
+        ($archive:expr) => {
+            if let Some(version) = args.write_version {
+                $archive.version = version.into()
+            } else if args.override_version {
+                $archive.version = WriteVersion::default().into()
+            }
+
+            if let Some(key) = args.key {
+                $archive.key = Some(key);
+            }
+        };
+    }
+
     match args.command {
         Command::Add {
             path,
@@ -178,13 +184,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
                 pattern: Option<String>,
                 mut archive: RenpyArchive<R>,
                 temp_path: &Path,
-                key: Option<u64>,
             ) -> RpaResult<()> {
-                // Override key.
-                if let Some(key) = key {
-                    archive.key = Some(key);
-                }
-
                 // Add manual specified files.
                 for file in files {
                     info!("Adding {}", file.display());
@@ -208,13 +208,15 @@ fn run(args: Cli) -> Result<(), RpaError> {
 
             temp_scope(&path, |temp_path| {
                 if path.exists() && path.is_file() {
-                    let archive = RenpyArchive::open(&path)?;
-                    add_files(&path, files, pattern, archive, temp_path, args.key)
+                    let mut archive = RenpyArchive::open(&path)?;
+                    update_config!(archive);
+                    add_files(&path, files, pattern, archive, temp_path)
                 } else if path.exists() {
                     io_error!("Expected an archive or empty path: {}", path.display())
                 } else {
-                    let archive = RenpyArchive::new();
-                    add_files(&path, files, pattern, archive, temp_path, args.key)
+                    let mut archive = RenpyArchive::new();
+                    update_config!(archive);
+                    add_files(&path, files, pattern, archive, temp_path)
                 }
             })
         }
@@ -290,9 +292,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
             keep,
         } => {
             let mut archive = RenpyArchive::open(&archive_path)?;
-            if let Some(key) = args.key {
-                archive.key = Some(key);
-            }
+            update_config!(archive);
 
             for file in files {
                 info!("Removing {}", file.display());
@@ -329,6 +329,8 @@ fn run(args: Cli) -> Result<(), RpaError> {
             relative,
         } => {
             let mut archive = RenpyArchive::open(&archive_path)?;
+            update_config!(archive);
+
             let dir = match relative {
                 RelativeTo::Archive => match archive_path.parent() {
                     Some(p) => p,
