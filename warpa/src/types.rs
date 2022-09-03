@@ -3,8 +3,9 @@ use std::{fmt::Display, str::FromStr};
 use warpalib::RpaVersion;
 
 /// Defines archive versions that support write.
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub enum WriteVersion {
+    #[default]
     V3,
     V2,
 }
@@ -29,12 +30,6 @@ impl Display for WriteVersion {
             WriteVersion::V3 => write!(f, "3"),
             WriteVersion::V2 => write!(f, "2"),
         }
-    }
-}
-
-impl Default for WriteVersion {
-    fn default() -> Self {
-        WriteVersion::V3
     }
 }
 
