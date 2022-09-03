@@ -2,6 +2,7 @@ use std::{fmt::Display, str::FromStr};
 
 use warpalib::RpaVersion;
 
+/// Defines archive versions that support write.
 #[derive(Debug)]
 pub enum WriteVersion {
     V3,
@@ -37,7 +38,7 @@ impl Default for WriteVersion {
     }
 }
 
-impl Into<RpaVersion> for WriteVersion {
+impl Into<RpaVersion> for &WriteVersion {
     fn into(self) -> RpaVersion {
         match self {
             WriteVersion::V3 => RpaVersion::V3_0,
@@ -46,6 +47,14 @@ impl Into<RpaVersion> for WriteVersion {
     }
 }
 
+impl Into<RpaVersion> for WriteVersion {
+    #[inline]
+    fn into(self) -> RpaVersion {
+        (&self).into()
+    }
+}
+
+/// Defines where an operation must be relative to.
 #[derive(Debug)]
 pub enum RelativeTo {
     Archive,

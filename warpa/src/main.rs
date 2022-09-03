@@ -157,20 +157,33 @@ fn main() {
     }
 }
 
-fn run(args: Cli) -> Result<(), RpaError> {
-    macro_rules! update_config {
-        ($archive:expr) => {
-            if let Some(version) = args.write_version {
-                $archive.version = version.into()
-            } else if args.override_version {
-                $archive.version = WriteVersion::default().into()
-            }
+/// A capture of config from cli.
+struct CliConfig {
+    pub key: Option<u64>,
+    pub write_version: Option<WriteVersion>,
+    pub override_version: bool,
+}
 
-            if let Some(key) = args.key {
-                $archive.key = Some(key);
-            }
-        };
+impl CliConfig {
+    fn update_archive<R: BufRead + Seek>(&self, archive: &mut RenpyArchive<R>) {
+        if let Some(version) = &self.write_version {
+            archive.version = version.into()
+        } else if self.override_version {
+            archive.version = WriteVersion::default().into()
+        }
+
+        if let Some(key) = self.key {
+            archive.key = Some(key);
+        }
     }
+}
+
+fn run(args: Cli) -> Result<(), RpaError> {
+    let config = CliConfig {
+        key: args.key,
+        write_version: args.write_version,
+        override_version: args.override_version,
+    };
 
     match args.command {
         Command::Add {
@@ -209,13 +222,13 @@ fn run(args: Cli) -> Result<(), RpaError> {
             temp_scope(&path, |temp_path| {
                 if path.exists() && path.is_file() {
                     let mut archive = RenpyArchive::open(&path)?;
-                    update_config!(archive);
+                    config.update_archive(&mut archive);
                     add_files(&path, files, pattern, archive, temp_path)
                 } else if path.exists() {
                     io_error!("Expected an archive or empty path: {}", path.display())
                 } else {
                     let mut archive = RenpyArchive::new();
-                    update_config!(archive);
+                    config.update_archive(&mut archive);
                     add_files(&path, files, pattern, archive, temp_path)
                 }
             })
@@ -292,7 +305,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
             keep,
         } => {
             let mut archive = RenpyArchive::open(&archive_path)?;
-            update_config!(archive);
+            config.update_archive(&mut archive);
 
             for file in files {
                 info!("Removing {}", file.display());
@@ -329,7 +342,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
             relative,
         } => {
             let mut archive = RenpyArchive::open(&archive_path)?;
-            update_config!(archive);
+            config.update_archive(&mut archive);
 
             let dir = match relative {
                 RelativeTo::Archive => match archive_path.parent() {
