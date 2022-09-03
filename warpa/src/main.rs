@@ -55,7 +55,7 @@ enum Command {
         #[clap(short, long)]
         archive_pattern: Option<String>,
 
-        /// Root output directory. The default is current directory.
+        /// Root output directory. The default is parent of archive.
         #[clap(short, long)]
         out: Option<PathBuf>,
 
@@ -218,8 +218,6 @@ fn run(args: Cli) -> Result<(), RpaError> {
             files,
             pattern,
         } => {
-            let out = out.unwrap_or_default();
-
             if let Some(pattern) = archives_pattern {
                 info!("Adding archives from glob pattern '{}'", pattern);
                 for file in glob(&pattern)? {
@@ -232,6 +230,8 @@ fn run(args: Cli) -> Result<(), RpaError> {
                 .into_par_iter()
                 .map(|path| {
                     let mut archive = RenpyArchive::open(&path)?;
+
+                    let out_dir = get_out_or_parent(out.as_ref(), &path)?;
 
                     let pattern = pattern
                         .as_ref()
@@ -261,7 +261,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
                     for (output, content) in content_iter {
                         info!("Extracting {}", output.display());
 
-                        let output = out.join(output);
+                        let output = out_dir.join(output);
                         if let Some(parent) = output.parent() {
                             if !parent.exists() {
                                 fs::create_dir_all(parent)?;
@@ -424,4 +424,22 @@ where
     }
 
     result
+}
+
+/// Returns [out] if given or [parent_of] other path.
+///
+/// # Errors
+///
+/// Throws an [`io::ErrorKind::NotFound`] if parent is not found.
+fn get_out_or_parent<'a>(out: Option<&'a PathBuf>, parent_of: &'a Path) -> io::Result<&'a Path> {
+    match out {
+        Some(out) => Ok(out),
+        None => match parent_of.parent() {
+            Some(parent) => Ok(parent),
+            None => Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("parent of {} not found", parent_of.display()),
+            )),
+        },
+    }
 }
