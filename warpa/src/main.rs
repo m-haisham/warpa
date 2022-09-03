@@ -246,11 +246,25 @@ fn run(args: Cli) -> Result<(), RpaError> {
 
                     if memory {
                         let mmap = MemArchive::open(&path)?;
-                        let content =
-                            filter_content(mmap.archive.content, &files, pattern.as_ref())
-                                .collect();
+                        if files.is_empty() && pattern.is_none() {
+                            // Convert the map into a parralel iter skipping iter collection.
+                            extract_archive_threaded(
+                                mmap.archive.reader.into_inner(),
+                                mmap.archive.content.par_iter(),
+                                out_dir,
+                            )
+                        } else {
+                            // Filter and collect results so parallelization will be affective.
+                            let content =
+                                filter_content(mmap.archive.content, &files, pattern.as_ref())
+                                    .collect::<Vec<_>>();
 
-                        extract_archive_threaded(mmap.archive.reader.into_inner(), content, out_dir)
+                            extract_archive_threaded(
+                                mmap.archive.reader.into_inner(),
+                                content.par_iter().map(|(p, c)| (p, c)),
+                                out_dir,
+                            )
+                        }
                     } else {
                         let mut archive = RenpyArchive::open(&path)?;
                         let content_iter =
@@ -258,8 +272,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
                         extract_archive(&mut archive.reader, content_iter, out_dir)
                     }
                 })
-                .collect::<RpaResult<Vec<()>>>()
-                .map(|_| ())
+                .collect::<RpaResult<()>>()
         }
         Command::List { archive } => {
             let archive = RenpyArchive::open(&archive)?;

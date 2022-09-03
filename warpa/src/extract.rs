@@ -6,8 +6,8 @@ use std::{
 
 use glob::Pattern;
 use log::info;
-use memmap2::Mmap;
-use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
+use memmap2::{Advice, Mmap};
+use rayon::prelude::ParallelIterator;
 use warpalib::{Content, ContentMap, RenpyArchive, RpaResult};
 
 pub struct MemArchive {
@@ -25,7 +25,6 @@ impl MemArchive {
         mmap.advise(Advice::WillNeed)?;
 
         let archive = RenpyArchive::read(Cursor::new(mmap))?;
-
         Ok(MemArchive { file, archive })
     }
 }
@@ -63,13 +62,11 @@ pub fn extract_archive<'a, R: Seek + Read>(
     Ok(())
 }
 
-pub fn extract_archive_threaded(
-    reader: Mmap,
-    content: Vec<(PathBuf, Content)>,
-    out_dir: &Path,
-) -> RpaResult<()> {
+pub fn extract_archive_threaded<'p, P>(reader: Mmap, content: P, out_dir: &Path) -> RpaResult<()>
+where
+    P: ParallelIterator<Item = (&'p PathBuf, &'p Content)>,
+{
     content
-        .par_iter()
         .map_init(
             || Cursor::new(&reader),
             |reader, (output, content)| extract_content(reader, output, content, out_dir),
