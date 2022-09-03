@@ -22,7 +22,7 @@ use crate::{RpaError, RpaResult};
 ///
 /// assert_eq!(1024, writer.len());
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Record {
     /// Index of starting byte of data.
     pub start: u64,

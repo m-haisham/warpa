@@ -3,12 +3,12 @@ use std::{
     fs::File,
     io::{self, Cursor, Read, Seek, Write},
     ops::{Deref, DerefMut},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 use log::debug;
 
-use crate::Record;
+use crate::{Record, RpaError, RpaResult};
 
 /// Represents contents of an archive mapped to their path
 #[derive(Default, Debug)]
@@ -88,10 +88,56 @@ impl ContentMap {
         }
         inner(self, path.into(), bytes)
     }
+
+    /// Change path of content without changing content itself, replacing any existing content
+    /// in the new path.
+    ///
+    /// The old content in `new_path` is returned if it exists.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::path::Path;
+    /// use warpalib::{Content, ContentMap};
+    ///
+    /// // Create empty map and populate with initial values.
+    /// let mut map = ContentMap::default();
+    /// map.insert_raw("file1.txt", vec![1, 2, 3]);
+    /// map.insert_raw("file2.txt", vec![4, 5, 6]);
+    ///
+    /// // Renaming the file returns old file2 content.
+    /// let old_content = map.rename_key("file1.txt", "file2.txt").unwrap();
+    /// assert_eq!(old_content, Some(Content::Raw(vec![4, 5, 6])));
+    ///
+    /// // file2 is replaced with file1 content.
+    /// let new_content = map.get(Path::new("file2.txt"));
+    /// assert_eq!(new_content, Some(&Content::Raw(vec![1, 2, 3])));
+    ///
+    /// // file1 no longer exists.
+    /// let file1 = map.get(Path::new("file1.txt"));
+    /// assert_eq!(file1, None);
+    /// ```
+    pub fn rename_key<O, N>(&mut self, old_path: O, new_path: N) -> RpaResult<Option<Content>>
+    where
+        O: AsRef<Path>,
+        N: Into<PathBuf>,
+    {
+        fn inner(
+            map: &mut ContentMap,
+            old_path: &Path,
+            new_path: PathBuf,
+        ) -> RpaResult<Option<Content>> {
+            match map.remove(old_path) {
+                Some(content) => Ok(map.insert(new_path, content)),
+                None => Err(RpaError::NotFound(old_path.to_path_buf())),
+            }
+        }
+        inner(self, old_path.as_ref(), new_path.into())
+    }
 }
 
 /// Represents data stored in archive.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Content {
     /// Points to a slice in archive.
     Record(Record),
