@@ -18,7 +18,7 @@ use log::{debug, error, info};
 use rayon::prelude::*;
 use simplelog::{ColorChoice, Config, LevelFilter, TermLogger};
 use std::io;
-use types::WriteVersion;
+use types::{MappedPath, WriteVersion};
 use warpalib::{Content, RenpyArchive, RpaError, RpaResult};
 
 #[derive(Parser, Debug)]
@@ -51,8 +51,13 @@ enum Command {
         /// Path to archive.
         path: PathBuf,
 
-        /// Files to be added.
-        files: Vec<PathBuf>,
+        /// Mapped files to be added to the archive.
+        ///
+        /// This argument takes input in two patterns.
+        /// A simple raw path where file has same relative path in archive as in filesystem.
+        /// Or, two paths joined by '=' where the former is the path in archive and latter
+        /// in the filesystem.
+        files: Vec<MappedPath>,
 
         /// Add files matching this pattern.
         #[clap(short, long)]
@@ -199,15 +204,16 @@ fn run(args: Cli) -> Result<(), RpaError> {
         } => {
             fn add_files<R: Seek + BufRead>(
                 path: &Path,
-                files: Vec<PathBuf>,
+                files: Vec<MappedPath>,
                 pattern: Option<String>,
                 mut archive: RenpyArchive<R>,
                 temp_path: &Path,
             ) -> RpaResult<()> {
                 // Add manual specified files.
-                for file in files {
-                    info!("Adding {}", file.display());
-                    archive.content.insert_file(file);
+                for file_map in files {
+                    info!("Adding {}", &file_map);
+                    let (archive_path, file_path) = file_map.into();
+                    archive.content.insert_file_mapped(archive_path, file_path);
                 }
 
                 // Add glob pattern specified files.

@@ -65,6 +65,13 @@ Add files to an archive either existing (will overwrite the existing file with t
 warpa add path/to/archive.rpa file1.txt file2.txt
 ```
 
+Files can alternatively mapped to different paths than in filesystem with ARCHIVE=REAL pattern.
+In the below example, the file is stored as archive.txt while being read from filesystem.txt
+
+```bash
+warpa add path/to/archive.rpa archive.txt=filesystem.txt
+```
+
 Or, alternatively you can add files based on glob patterns. The example below adds all files in images folder into the archive.
 
 ```bash
