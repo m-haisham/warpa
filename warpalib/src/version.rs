@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use log::info;
+use log::{info, trace};
 
 use crate::{RpaError, RpaResult};
 
@@ -46,7 +46,7 @@ impl RpaVersion {
     ///
     /// If none of the above matches, `None` is returned.
     pub fn identify(file_name: &str, version: &str) -> Option<Self> {
-        info!("Identifying version from file name ({file_name}) and identity string ({version})");
+        trace!("Identifying version from file name ({file_name}) and identity string ({version})");
 
         match version {
             "RPA-3.2" => Some(Self::V3_2),

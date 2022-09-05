@@ -6,7 +6,7 @@ use std::{
 };
 
 use flate2::{read::ZlibDecoder, write::ZlibEncoder, Compression};
-use log::{debug, info};
+use log::{debug, info, trace};
 use serde_pickle::{DeOptions, HashableValue, SerOptions, Value};
 
 use crate::{record::Record, version::RpaVersion, Content, ContentMap, RpaError, RpaResult};
@@ -57,11 +57,8 @@ pub struct RenpyArchive<R: Seek + BufRead> {
 }
 
 impl RenpyArchive<Cursor<Vec<u8>>> {
-    /// Create a new in-memory archive.
-    ///
-    /// This does not heap allocate.
+    /// Create a new in-memory archive without allocating to heap.
     pub fn new() -> Self {
-        info!("Opening new empty in-memory archive");
         Self::default()
     }
 }
@@ -81,7 +78,7 @@ impl Default for RenpyArchive<Cursor<Vec<u8>>> {
 impl RenpyArchive<BufReader<File>> {
     /// Open archive from file.
     pub fn open(path: &Path) -> RpaResult<Self> {
-        info!("Opening archive from file: {}", path.display());
+        trace!("Opening archive from file: {}", path.display());
 
         let mut reader = BufReader::new(File::open(path)?);
 
@@ -110,7 +107,7 @@ where
 {
     /// Open an archive from bytes.
     pub fn read(mut reader: R) -> RpaResult<Self> {
-        info!("Opening archive from reader");
+        trace!("Opening archive from reader");
 
         let version = Self::version(&mut reader, "")?;
         let (offset, key, content) = Self::metadata(&mut reader, &version)?;
@@ -133,7 +130,7 @@ where
 
     /// Retrieve `offset`, `key`, and content indexes from the archive
     pub fn metadata(reader: &mut R, version: &RpaVersion) -> RpaResult<MetaData> {
-        info!("Parsing metadata from archive version ({version})");
+        trace!("Parsing metadata from archive version ({version})");
 
         let mut first_line = String::new();
         reader.read_line(&mut first_line)?;
@@ -165,7 +162,7 @@ where
         };
         debug!("Parsed the obfuscation key: {key:?}");
 
-        info!("Retrieving indexes");
+        trace!("Commencing index retrieval");
 
         // Retrieve indexes.
         reader.seek(SeekFrom::Start(offset))?;
@@ -236,7 +233,7 @@ where
     ///
     /// Take care not to write to the same archive as being read from.
     pub fn flush<W: Seek + Write>(mut self, writer: &mut W) -> RpaResult<()> {
-        info!("Commencing archive flush");
+        trace!("Commencing archive flush");
 
         let mut offset: u64 = 0;
 
@@ -251,7 +248,7 @@ where
         );
 
         // Build indexes while writing to the archive.
-        info!("Rebuilding indexes from content");
+        trace!("Rebuilding indexes from content");
         let mut indexes = HashMap::new();
 
         // Copy data from content.
@@ -265,7 +262,7 @@ where
         }
 
         {
-            info!("Preparing to write indexes");
+            trace!("Preparing to write indexes");
 
             // Convert indexes into serializable values.
             let values = Value::Dict(BTreeMap::from_iter(
@@ -301,7 +298,7 @@ where
         }
 
         // Back to start, time to write the header.
-        info!("Rewinding and writing archive header");
+        trace!("Rewinding and writing archive header");
         writer.rewind()?;
 
         let key = self.key.unwrap_or(0);
