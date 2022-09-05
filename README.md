@@ -57,6 +57,17 @@ SUBCOMMANDS:
 [docs]: https://docs.rs/warpalib/latest/warpalib/
 [examples]: warpalib/examples/
 
+### Config
+
+#### Key
+
+The key argument can be used to specify the index table encryption key for the archive.
+The default key is "0xDEADBEEF".
+
+```bash
+warpa -k BA5E7023 add path/to/archive.rpa file.txt
+```
+
 ### Add
 
 Add files to an archive either existing (will overwrite the existing file with the same path) or create a new archive with:
