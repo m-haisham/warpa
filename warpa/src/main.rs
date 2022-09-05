@@ -14,7 +14,7 @@ use std::{
 use clap::{Parser, Subcommand};
 use extract::{extract_archive, extract_archive_threaded, filter_content, MemArchive};
 use glob::{glob, Pattern};
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use rayon::prelude::*;
 use simplelog::{ColorChoice, Config, LevelFilter, TermLogger};
 use std::io;
@@ -206,17 +206,24 @@ fn run(args: Cli) -> Result<(), RpaError> {
             ) -> RpaResult<()> {
                 // Add manual specified files.
                 for file_map in files {
-                    info!("Adding {}", &file_map);
+                    info!("Adding {}...", &file_map);
                     let (archive_path, file_path) = file_map.into();
-                    archive.content.insert_file_mapped(archive_path, file_path);
+                    let removed = archive
+                        .content
+                        .insert_file_mapped(archive_path.clone(), file_path);
+                    if let Some(_) = removed {
+                        warn!("Removed previous content in {}.", archive_path.display());
+                    }
                 }
 
                 // Add glob pattern specified files.
                 if let Some(pattern) = pattern {
                     for file in glob(&pattern)? {
                         let file = file.expect("Failed glob iteration");
-                        info!("Adding {}", file.display());
-                        archive.content.insert_file(file);
+                        info!("Adding {}...", file.display());
+                        if let Some(_) = archive.content.insert_file(file.clone()) {
+                            warn!("Removed previous content in {}.", file.display());
+                        }
                     }
                 }
 
@@ -249,7 +256,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
             memory,
         } => {
             if let Some(pattern) = archives_pattern {
-                info!("Adding archives from glob pattern '{}'", pattern);
+                info!("Adding archives from glob pattern '{}'...", pattern);
                 for file in glob(&pattern)? {
                     let file = file.expect("Failed glob iteration");
                     archives.push(file);
@@ -315,9 +322,9 @@ fn run(args: Cli) -> Result<(), RpaError> {
             config.update_archive(&mut archive);
 
             for file in files {
-                info!("Removing {}", file.display());
+                info!("Removing {}...", file.display());
                 if archive.content.remove(file.as_path()).is_none() {
-                    return io_error!("File not found in archive: '{}'", file.display());
+                    return io_error!("File {} not found in the archive.", file.display());
                 }
             }
 
@@ -330,7 +337,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
                     .filter(move |(path, _)| {
                         let keep = pattern.matches_path(path) ^ keep;
                         if !keep {
-                            info!("Removing {}", path.display());
+                            info!("Removing {}...", path.display());
                         }
                         keep
                     })
@@ -433,6 +440,8 @@ fn replace_archive<R: Seek + BufRead>(
     path: &Path,
     temp_path: &Path,
 ) -> RpaResult<()> {
+    info!("Replacing archive in {}.", path.display());
+
     {
         let mut temp_file = File::create(&temp_path)?;
         archive.flush(&mut temp_file)?;
@@ -454,6 +463,7 @@ where
     let result = f(temp_path.as_path());
 
     if temp_path.exists() {
+        warn!("Removing dangling temporary {}.", temp_path.display());
         fs::remove_file(&temp_path)?;
     }
 

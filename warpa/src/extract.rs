@@ -10,9 +10,13 @@ use memmap2::{Advice, Mmap};
 use rayon::prelude::ParallelIterator;
 use warpalib::{Content, ContentMap, RenpyArchive, RpaResult};
 
+/// An in-memory memmap archive backed by a file.
 pub struct MemArchive {
+    /// The file backing the memmap. Dropping this before the archive will lead to errors.
     #[allow(dead_code)]
     file: File,
+
+    /// The archive reading from the memmap.
     pub archive: RenpyArchive<Cursor<Mmap>>,
 }
 
@@ -80,7 +84,7 @@ pub fn extract_content<R: Seek + Read>(
     content: &Content,
     out_dir: &Path,
 ) -> RpaResult<()> {
-    info!("Extracting {}", output.display());
+    info!("Extracting {}...", output.display());
 
     let output = out_dir.join(output);
     if let Some(parent) = output.parent() {
