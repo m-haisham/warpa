@@ -33,20 +33,20 @@ impl Display for WriteVersion {
     }
 }
 
-#[allow(clippy::from_over_into)]
-impl Into<RpaVersion> for &WriteVersion {
-    fn into(self) -> RpaVersion {
-        match self {
+impl From<WriteVersion> for RpaVersion {
+    fn from(version: WriteVersion) -> Self {
+        match version {
             WriteVersion::V3 => RpaVersion::V3_0,
             WriteVersion::V2 => RpaVersion::V2_0,
         }
     }
 }
 
-#[allow(clippy::from_over_into)]
-impl Into<RpaVersion> for WriteVersion {
-    #[inline]
-    fn into(self) -> RpaVersion {
-        (&self).into()
+impl From<&WriteVersion> for RpaVersion {
+    fn from(version: &WriteVersion) -> Self {
+        match version {
+            WriteVersion::V3 => RpaVersion::V3_0,
+            WriteVersion::V2 => RpaVersion::V2_0,
+        }
     }
 }

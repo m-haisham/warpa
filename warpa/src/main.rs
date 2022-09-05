@@ -172,7 +172,7 @@ struct CliConfig {
 
 impl CliConfig {
     fn update_archive<R: BufRead + Seek>(&self, archive: &mut RenpyArchive<R>) {
-        if let Some(version) = &self.write_version {
+        if let Some(version) = self.write_version.as_ref() {
             archive.version = version.into()
         } else if self.override_version {
             archive.version = WriteVersion::default().into()
