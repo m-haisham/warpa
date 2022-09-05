@@ -18,7 +18,7 @@ use log::{debug, error, info};
 use rayon::prelude::*;
 use simplelog::{ColorChoice, Config, LevelFilter, TermLogger};
 use std::io;
-use types::{MappedPath, WriteVersion};
+use types::{HexKey, MappedPath, WriteVersion};
 use warpalib::{Content, RenpyArchive, RpaError, RpaResult};
 
 #[derive(Parser, Debug)]
@@ -30,7 +30,7 @@ struct Cli {
 
     /// The encryption key used for creating v3 archives (default=0xDEADBEEF).
     #[clap(short, long)]
-    key: Option<u64>,
+    key: Option<HexKey>,
 
     /// The write version of archives.
     #[clap(short, long)]
@@ -165,7 +165,7 @@ fn main() {
 
 /// A capture of config from cli.
 struct CliConfig {
-    pub key: Option<u64>,
+    pub key: Option<HexKey>,
     pub write_version: Option<WriteVersion>,
     pub override_version: bool,
 }
@@ -178,8 +178,8 @@ impl CliConfig {
             archive.version = WriteVersion::default().into()
         }
 
-        if let Some(key) = self.key {
-            archive.key = Some(key);
+        if let Some(key) = self.key.as_ref() {
+            archive.key = Some(key.0);
         }
     }
 }
