@@ -211,7 +211,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
                     let removed = archive
                         .content
                         .insert_file_mapped(archive_path.clone(), file_path);
-                    if let Some(_) = removed {
+                    if removed.is_some() {
                         warn!("Removed previous content in {}.", archive_path.display());
                     }
                 }
@@ -221,7 +221,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
                     for file in glob(&pattern)? {
                         let file = file.expect("Failed glob iteration");
                         info!("Adding {}...", file.display());
-                        if let Some(_) = archive.content.insert_file(file.clone()) {
+                        if archive.content.insert_file(file.clone()).is_some() {
                             warn!("Removed previous content in {}.", file.display());
                         }
                     }
@@ -383,18 +383,19 @@ fn run(args: Cli) -> Result<(), RpaError> {
 
             // Update all if no specifics are defined.
             if files.is_empty() && pattern.is_none() {
-                info!("Updating all files in archive, no specifics defined.");
+                debug!("Updating all files in archive, no specifics defined.");
                 archive.content = archive
                     .content
                     .into_iter()
-                    .map(|(p, _)| {
-                        let file = Content::File(dir.join(&p));
-                        (p, file)
+                    .map(|(path, _)| {
+                        let file = Content::File(dir.join(&path));
+                        info!("Updating {}...", path.display());
+                        (path, file)
                     })
                     .collect::<HashMap<_, _>>()
                     .into();
             } else {
-                info!("Updating files defined by pattern in archive.");
+                debug!("Updating files defined by pattern in archive.");
                 if let Some(pattern) = pattern {
                     let pattern = Pattern::from_str(&pattern)?;
                     archive.content = archive
@@ -402,7 +403,7 @@ fn run(args: Cli) -> Result<(), RpaError> {
                         .into_iter()
                         .map(|(path, content)| {
                             if pattern.matches_path(&path) {
-                                debug!("Updating '{}' by pattern.", path.display());
+                                info!("Updating {}...", path.display());
                                 let file = Content::File(dir.join(&path));
                                 (path, file)
                             } else {
@@ -413,11 +414,11 @@ fn run(args: Cli) -> Result<(), RpaError> {
                         .into();
                 }
 
-                info!("Updating files defined by path in archive.");
+                debug!("Updating files defined by path in archive.");
                 for path in files {
                     match archive.content.get_mut(&path) {
-                        Some(content) if matches!(content, Content::Record(_)) => {
-                            debug!("Updating '{}' by path.", path.display());
+                        Some(content @ Content::Record(_)) => {
+                            info!("Updating {}...", path.display());
                             *content = Content::File(dir.join(path))
                         }
                         Some(_) => (),
@@ -440,7 +441,7 @@ fn replace_archive<R: Seek + BufRead>(
     path: &Path,
     temp_path: &Path,
 ) -> RpaResult<()> {
-    info!("Replacing archive in {}.", path.display());
+    debug!("Replacing archive in {}.", path.display());
 
     {
         let mut temp_file = File::create(&temp_path)?;
@@ -463,7 +464,7 @@ where
     let result = f(temp_path.as_path());
 
     if temp_path.exists() {
-        warn!("Removing dangling temporary {}.", temp_path.display());
+        warn!("Removing dangling {}.", temp_path.display());
         fs::remove_file(&temp_path)?;
     }
 

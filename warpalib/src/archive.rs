@@ -6,7 +6,7 @@ use std::{
 };
 
 use flate2::{read::ZlibDecoder, write::ZlibEncoder, Compression};
-use log::{debug, info, trace};
+use log::{debug, trace};
 use serde_pickle::{DeOptions, HashableValue, SerOptions, Value};
 
 use crate::{record::Record, version::RpaVersion, Content, ContentMap, RpaError, RpaResult};

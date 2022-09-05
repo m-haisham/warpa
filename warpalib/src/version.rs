@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use log::{info, trace};
+use log::trace;
 
 use crate::{RpaError, RpaResult};
 
