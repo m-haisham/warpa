@@ -46,20 +46,15 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Command {
-    /// Add files to existing or new archive
+    /// Add files to existing or create a new archive
     Add {
-        /// Path to archive.
+        /// Path to existing or new archive file.
         path: PathBuf,
 
         /// Mapped files to be added to the archive.
-        ///
-        /// This argument takes input in two patterns.
-        /// A simple raw path where file has same relative path in archive as in filesystem.
-        /// Or, two paths joined by '=' where the former is the path in archive and latter
-        /// in the filesystem.
         files: Vec<MappedPath>,
 
-        /// Add files matching this pattern.
+        /// Add files matching this glob pattern.
         #[clap(short, long)]
         pattern: Option<String>,
     },
