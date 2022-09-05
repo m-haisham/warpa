@@ -20,7 +20,7 @@ impl FromStr for MappedPath {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(match s.split_once("=") {
+        Ok(match s.split_once('=') {
             Some((k, v)) => MappedPath {
                 key: PathBuf::from(k),
                 value: Some(PathBuf::from(v)),
