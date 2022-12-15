@@ -1,6 +1,6 @@
 use std::{num::ParseIntError, str::FromStr};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct HexKey(pub u64);
 
 impl FromStr for HexKey {

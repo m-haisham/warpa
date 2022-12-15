@@ -22,25 +22,25 @@ use types::{HexKey, MappedPath, WriteVersion};
 use warpalib::{Content, RenpyArchive, RpaError, RpaResult};
 
 #[derive(Parser, Debug)]
-#[clap(author, version, about, long_about = None)]
+#[command(author, version, about, long_about = None)]
 struct Cli {
     /// Provide additional information (default only shows errors).
-    #[clap(short, long, action = clap::ArgAction::Count)]
+    #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
 
     /// The encryption key used for creating v3 archives (default=0xDEADBEEF).
-    #[clap(short, long)]
+    #[arg(short, long)]
     key: Option<HexKey>,
 
     /// The write version of archives.
-    #[clap(short, long)]
+    #[arg(short, long)]
     write_version: Option<WriteVersion>,
 
     /// Override with default write version (3) if archive version does not support write.
-    #[clap(short, long)]
+    #[arg(short, long)]
     override_version: bool,
 
-    #[clap(subcommand)]
+    #[command(subcommand)]
     command: Command,
 }
 
@@ -55,7 +55,7 @@ enum Command {
         files: Vec<MappedPath>,
 
         /// Add files matching this glob pattern.
-        #[clap(short, long)]
+        #[arg(short, long)]
         pattern: Option<String>,
     },
 
@@ -65,23 +65,23 @@ enum Command {
         archives: Vec<PathBuf>,
 
         /// Find archives using the glob pattern.
-        #[clap(short, long)]
+        #[arg(short, long)]
         archive_pattern: Option<String>,
 
         /// Root output directory. The default is parent of archive.
-        #[clap(short, long)]
+        #[arg(short, long)]
         out: Option<PathBuf>,
 
         /// Files to be extracted.
-        #[clap(short, long)]
+        #[arg(short, long)]
         files: Vec<PathBuf>,
 
         /// Extract files matching the given glob pattern
-        #[clap(short, long)]
+        #[arg(short, long)]
         pattern: Option<String>,
 
         /// Load archive into memory and read using multiple threads. This is experimental.
-        #[clap(short, long)]
+        #[arg(short, long)]
         memory: bool,
     },
 
@@ -100,11 +100,11 @@ enum Command {
         files: Vec<PathBuf>,
 
         /// Remove archive files matching this glob pattern.
-        #[clap(short, long)]
+        #[arg(short, long)]
         pattern: Option<String>,
 
         /// Keep files matching the pattern.
-        #[clap(short, long)]
+        #[arg(short, long)]
         keep: bool,
     },
 
@@ -117,11 +117,11 @@ enum Command {
         files: Vec<PathBuf>,
 
         /// Update archive files matching this glob pattern.
-        #[clap(short, long)]
+        #[arg(short, long)]
         pattern: Option<String>,
 
         /// Find files relative to directory. The default is archive directory.
-        #[clap(short, long)]
+        #[arg(short, long)]
         relative: Option<PathBuf>,
     },
 }

@@ -3,7 +3,7 @@ use std::{fmt::Display, str::FromStr};
 use warpalib::RpaVersion;
 
 /// Defines archive versions that support write.
-#[derive(Default, Debug)]
+#[derive(Clone, Default, Debug)]
 pub enum WriteVersion {
     #[default]
     V3,
