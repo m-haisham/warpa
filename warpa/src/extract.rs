@@ -6,7 +6,7 @@ use std::{
 
 use glob::Pattern;
 use log::info;
-use memmap2::{Advice, Mmap};
+use memmap2::Mmap;
 use rayon::prelude::ParallelIterator;
 use warpalib::{Content, ContentMap, RenpyArchive, RpaResult};
 
@@ -26,7 +26,7 @@ impl MemArchive {
         let file = File::open(path)?;
         let mmap = unsafe { Mmap::map(&file)? };
         #[cfg(unix)]
-        mmap.advise(Advice::WillNeed)?;
+        mmap.advise(memmap2::Advice::WillNeed)?;
 
         let archive = RenpyArchive::read(Cursor::new(mmap))?;
         Ok(MemArchive { file, archive })
